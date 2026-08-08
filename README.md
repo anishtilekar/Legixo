@@ -288,6 +288,11 @@ Key design points:
   truncates beyond it.
 - **E5 prefixes are enforced in one place** (`app/llm.py`). E5 models are trained with
   asymmetric query/passage prefixes; skipping them measurably degrades retrieval.
+- **All LLM calls run at `temperature=0`.** Grading, rewriting, and answering are decisions
+  and extractions, not creative writing. Leaving temperature unset sends nothing to the API
+  and lets the provider default (~0.7) apply, which made identical questions flip between
+  `answered` and `not_found`; pinning it to 0 took the eval from a fluctuating 11–15/15 to
+  15/15 across two consecutive `--repeat 3` sweeps (90 case-runs, zero failures).
 
 ---
 
@@ -373,12 +378,11 @@ costs cents rather than a balance.
 
 Stated plainly rather than left for you to find:
 
-- **Run-to-run variance of roughly 1–2%.** Across ~135 case-runs, two individual runs
-  failed — both by *refusing a question it could have answered*, never by fabricating an
-  answer or a citation. The failure direction is always the safe one. Removing this would
-  need self-consistency voting on the grader (2-of-3), tripling grader cost for a marginal
-  gain on a 15-chunk corpus; that was judged not worth it. A reviewer re-running the eval
-  may see 14/15 rather than 15/15.
+- **Some run-to-run variance remains.** All LLM calls run at `temperature=0`, which removed
+  the large majority of it (see below), but Together's serverless inference is not
+  bit-for-bit deterministic, so an occasional borderline grade can still flip. When it
+  does, it fails in the safe direction — *refusing a question it could have answered*,
+  never fabricating an answer or a citation.
 - **Small-corpus retrieval.** With 15 chunks and `top_k=5`, retrieval alone cannot
   discriminate — see the calibration section above. On a larger corpus the relevance floor
   would start doing real work.

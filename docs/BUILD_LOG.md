@@ -151,6 +151,12 @@ proves failures here are grading failures, not retrieval failures. Full write-up
 
 ### Honest note on run-to-run variance
 
+> **SUPERSEDED IN PHASE 5 — this diagnosis was wrong.** The variance below was not
+> inherent LLM flakiness; it was caused by never setting `temperature`, so Together
+> applied its own sampling default (~0.7) to what are pure classification and extraction
+> calls. Setting `temperature=0` eliminated it. See Phase 5. Leaving the original text
+> here because the *measurements* were real — only the attribution was wrong.
+
 The system is **not** perfectly deterministic. Across three full `--repeat 3` sweeps
 (~135 case-runs) two individual runs failed: case 4 once (false refusal) and case 6 once.
 That is roughly a 1–2% per-case-run failure rate, all in the same direction — refusing a
@@ -196,3 +202,76 @@ directions: disabled leaves the env var absent, enabled sets tracing + project. 
 **State for Phase 5:** all deliverables written. Remaining: clean-clone rehearsal in a
 fresh directory and fresh venv following only the README, final secret sweep of git
 history, and the video recording (user action).
+
+Committed as `7733eae`.
+
+---
+
+## Phase 5 — Clean-clone rehearsal (done)
+
+Cloned the repo to a fresh directory with a fresh 3.11 venv and followed **only** the
+README — no memory, no shortcuts. Three real problems surfaced that no amount of
+re-reading would have caught.
+
+### 1. `temperature` was never set — the big one
+
+**This is the most important finding in the whole project, and it invalidates the Phase 3
+variance diagnosis.**
+
+`ChatTogether`'s `temperature` field defaults to `None`, which means the parameter is
+never sent to the API, so Together applies its own server-side default (~0.7). Every LLM
+call in this app is a *decision* or a *grounded extraction* — grade relevance, rewrite a
+query, answer from supplied text. None of them want creative sampling.
+
+The symptom was the thing I'd already documented and misattributed: identical questions
+flipping between `answered` and `not_found` across runs. During Phase 5 an eval run
+degraded to **11/15** (four separate cases false-refusing), which was far outside the
+"1–2% inherent variance" I had written down — that gap is what prompted looking at
+temperature at all.
+
+Ruled out first, so the diagnosis isn't a guess: not rate limiting (8/8 in a rapid burst,
+zero grader exceptions, no 429s in the server log), and not retrieval (recall was already
+measured at 15/15 in Phase 3).
+
+Measured effect of `temperature=0.0`:
+
+| | result |
+|---|---|
+| Together default sampling | 11/15 → 15/15, varying run to run |
+| `temperature=0.0`, sweep 1 (`--repeat 3`) | **15/15, every case 3/3** |
+| `temperature=0.0`, sweep 2 (`--repeat 3`) | **15/15, every case 3/3** |
+
+90 consecutive case-runs with zero failures. The "known flakiness" I'd chosen to document
+rather than fix in Phase 3 was a one-line config defect, not a property of the model. Fixed
+in `app/llm.py` with the reasoning recorded at the call site.
+
+### 2. Placeholder keys produced an unusable error
+
+Copying `.env.example` → `.env` and forgetting to swap the keys (exactly what a reviewer in
+a hurry does) gave a 14-line SDK traceback ending in `[401] Invalid API key`. Accurate,
+useless. Added `require_live_keys()` — fails before any network call, names the specific
+offending variable, links only the provider(s) actually needed, and points at the
+`--dry-run` path that needs no keys. Covered by `tests/test_config_preflight.py`.
+
+### 3. Eval matcher missed a third number format
+
+The clean clone produced `₹1 35 000` (space-separated digit grouping) where earlier runs
+gave `₹1,35,000` — a factually correct answer scored as a failure. That's the third
+formatting variant the matcher has had to absorb (commas, hyphens, now spaces). Collapse
+separators only *between digits*, so `45 days` stays untouched.
+
+### Rehearsal verification
+
+- Fresh clone contains **no `.env`** — confirmed.
+- `pip install -r requirements.txt` from scratch — clean.
+- `pytest tests/ -q` with **no `.env` at all** → 21/21.
+- `python -m scripts.ingest --dry-run` with **no keys** → 6 files / 15 chunks.
+- `python -m scripts.ingest --reset` with real keys → 15 chunks, output matches the README
+  byte for byte.
+- `GET /healthz` → 15 vectors; good-path curl → answered with citation; trap question →
+  `not_found`, 0 citations.
+- Full git history scanned blob-by-blob for `tgp_v1_*` / `pcsk_*` / `ls__*` — **clean**.
+  `.env` was never tracked in any commit.
+
+**Remaining (user action only):** record the demo video from the video script, create
+the GitHub remote, and push.

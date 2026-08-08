@@ -10,10 +10,25 @@ from langchain_together import ChatTogether, TogetherEmbeddings
 from app.config import E5_DOC_PREFIX, E5_QUERY_INSTRUCTION, Settings
 
 
-def make_chat_model(settings: Settings, *, model_name: str | None = None, **kwargs) -> ChatTogether:
+def make_chat_model(
+    settings: Settings,
+    *,
+    model_name: str | None = None,
+    temperature: float = 0.0,
+    **kwargs,
+) -> ChatTogether:
+    """Temperature defaults to 0 deliberately.
+
+    Every LLM call in this app is a decision or a grounded extraction — grading
+    relevance, rewriting a query, answering from supplied text. None of them want
+    creative sampling. Leaving temperature unset sends nothing to the API, so
+    Together applies its own default (~0.7), which made identical questions flip
+    between answered and not_found across runs.
+    """
     return ChatTogether(
         model_name=model_name or settings.together_model,
         together_api_key=settings.together_api_key,
+        temperature=temperature,
         **kwargs,
     )
 
