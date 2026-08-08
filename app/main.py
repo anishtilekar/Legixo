@@ -6,7 +6,7 @@ from functools import lru_cache
 from fastapi import FastAPI, Header, HTTPException
 from langgraph.errors import GraphRecursionError
 
-from app.config import get_settings
+from app.config import MissingKeysError, get_settings, require_live_keys
 from app.graph.build import build_graph, build_production_deps, recursion_limit_for
 from app.ingest import ingest_corpus
 from app.schemas import AskRequest, AskResponse, Citation, IngestResponse
@@ -34,6 +34,10 @@ def _get_graph():
 def healthz():
     settings = get_settings()
     try:
+        require_live_keys(settings)
+    except MissingKeysError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    try:
         store = VectorStore(settings)
         stats = store.stats()
     except Exception as exc:  # surfaced as-is so config problems are obvious
@@ -53,6 +57,11 @@ def healthz():
 
 @app.post("/ask", response_model=AskResponse)
 def ask(req: AskRequest):
+    try:
+        require_live_keys(get_settings())
+    except MissingKeysError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+
     graph = _get_graph()
     initial = {"question": req.question}
     if req.top_k:

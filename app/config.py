@@ -54,3 +54,41 @@ E5_DOC_PREFIX = "passage: {text}"
 
 def get_settings() -> Settings:
     return Settings()  # type: ignore[call-arg]
+
+
+class MissingKeysError(RuntimeError):
+    """Raised instead of letting a provider SDK emit a bare 401 traceback."""
+
+
+def require_live_keys(settings: Settings) -> None:
+    """Fail with an actionable message before any network call.
+
+    Without this, forgetting to replace the placeholders in .env surfaces as a
+    14-line SDK traceback ending in `[401] Invalid API key`, which tells a new
+    reviewer nothing about what to actually do.
+    """
+    sources = {
+        "TOGETHER_API_KEY": "https://api.together.xyz  (Settings -> API Keys)",
+        "PINECONE_API_KEY": "https://app.pinecone.io   (API Keys)",
+    }
+    problems, fixes = [], []
+    for name, value in (
+        ("TOGETHER_API_KEY", settings.together_api_key),
+        ("PINECONE_API_KEY", settings.pinecone_api_key),
+    ):
+        if not value:
+            problems.append(f"  - {name} is not set")
+        elif value.startswith("dummy"):
+            problems.append(f"  - {name} is still the placeholder from .env.example")
+        else:
+            continue
+        fixes.append(f"  {name}  -> {sources[name]}")
+
+    if problems:
+        raise MissingKeysError(
+            "Missing or placeholder API keys:\n"
+            + "\n".join(problems)
+            + "\n\nFix: copy .env.example to .env (if you haven't), then set:\n"
+            + "\n".join(fixes)
+            + "\n\nNo keys needed to explore chunking: python -m scripts.ingest --dry-run"
+        )

@@ -13,7 +13,7 @@ import argparse
 import logging
 import sys
 
-from app.config import get_settings
+from app.config import MissingKeysError, get_settings, require_live_keys
 from app.ingest import ingest_corpus
 
 
@@ -28,6 +28,13 @@ def main() -> int:
     logging.basicConfig(level=logging.INFO, format="%(message)s")
 
     settings = get_settings()
+    if not args.dry_run:  # --dry-run deliberately needs no keys
+        try:
+            require_live_keys(settings)
+        except MissingKeysError as exc:
+            print(f"\nERROR: {exc}")
+            return 2
+
     result = ingest_corpus(
         settings,
         corpus_dir=args.path,
