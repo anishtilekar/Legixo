@@ -162,3 +162,37 @@ cost for a marginal gain — noted as a deliberate trade-off, not an oversight.
 **State for Phase 4:** all code paths done and verified. Remaining: `README.md`,
 `docs/langgraph.md`, the video script, LangSmith wiring behind
 `LANGCHAIN_TRACING_V2`, then the clean-clone rehearsal.
+
+Committed as `c12402a`.
+
+---
+
+## Phase 4 — Docs + LangSmith (done)
+
+**Built:** `README.md` (install → keys → Pinecone setup → ingest → serve → curl, with the
+idempotency answer the brief asks for and a stated limitations section),
+`docs/langgraph.md` (mermaid diagram, 8-node table, branch logic, limit derivation),
+the video script (timed shot list covering every item the brief requires on video),
+LangSmith wiring behind `LANGCHAIN_TRACING_V2`.
+
+**Defect found and fixed: LangSmith tracing would have silently done nothing.**
+`app/main.py` never called `load_dotenv()`, and pydantic-settings' `env_file` only
+populates the `Settings` object — it does **not** write to `os.environ`. LangChain's tracer
+reads `LANGCHAIN_*` straight from `os.environ`, so setting `LANGCHAIN_TRACING_V2=true` in
+`.env` and starting via uvicorn would have produced no traces at all, with no error. Added
+`_apply_langsmith_env()` in `build.py`, called from `build_production_deps`. Verified both
+directions: disabled leaves the env var absent, enabled sets tracing + project. Also pinned
+`langsmith` explicitly in `requirements.txt` rather than relying on it as a transitive dep.
+
+**Verification — every documented command was actually executed, not assumed:**
+- `pytest tests/ -q` → 17/17.
+- `--dry-run` with **both API keys unset** in a temp dir → 6 files / 15 chunks, confirming
+  the README's "no API keys needed" claim for that flag.
+- `GET /healthz` → 15 vectors.
+- Good-path curl → answered, cited `corpus/02_employment_agreement_excerpt.md#1`.
+- Refusal curl (Harbor Bean Roasters trap) → `not_found`, 0 citations, 3 attempts.
+- `POST /admin/ingest` with valid token → 15 chunks; with a wrong token → **401**.
+
+**State for Phase 5:** all deliverables written. Remaining: clean-clone rehearsal in a
+fresh directory and fresh venv following only the README, final secret sweep of git
+history, and the video recording (user action).

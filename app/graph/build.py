@@ -21,6 +21,8 @@ Two independent limits (see PROJECT_CONSTANTS.md):
 """
 from __future__ import annotations
 
+import os
+
 from langgraph.graph import END, START, StateGraph
 
 from app.config import Settings
@@ -91,8 +93,22 @@ def build_graph(deps: GraphDeps):
     return builder.compile()
 
 
+def _apply_langsmith_env(settings: Settings) -> None:
+    """LangChain's tracer reads LANGCHAIN_* from os.environ directly, not from our
+    Settings object — pydantic-settings' env_file loading only populates Settings,
+    it never touches os.environ. Without this, LANGCHAIN_TRACING_V2=true in .env
+    would silently do nothing when the app is started via uvicorn."""
+    if not settings.langchain_tracing_v2:
+        return
+    os.environ["LANGCHAIN_TRACING_V2"] = "true"
+    if settings.langchain_api_key:
+        os.environ["LANGCHAIN_API_KEY"] = settings.langchain_api_key
+    os.environ["LANGCHAIN_PROJECT"] = settings.langchain_project
+
+
 def build_production_deps(settings: Settings) -> GraphDeps:
     """Wire the real Together + Pinecone clients into the graph."""
+    _apply_langsmith_env(settings)
     embedder = E5Embeddings(settings)
     store = VectorStore(settings)
     store.ensure_index()

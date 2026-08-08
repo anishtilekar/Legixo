@@ -3,6 +3,7 @@ uvicorn[standard]>=0.32
 langgraph>=1.2,<2
 langchain-core>=1.4.7,<2
 langchain-together>=0.4,<0.5
+langsmith>=0.10,<1  # optional tracing, see LANGCHAIN_TRACING_V2 in .env.example
 pinecone>=9.1,<10
 pydantic>=2.9
 pydantic-settings>=2.6
