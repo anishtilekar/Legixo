@@ -31,6 +31,9 @@ CASES_PATH = Path("eval/test_cases.json")
 RESULTS_PATH = Path("eval/results.md")
 
 _DIGIT_COMMA = re.compile(r"(?<=\d),(?=\d)")
+# The model formats large numbers inconsistently: "1,35,000", "1 35 000", "135000".
+# Collapse separators *only* between digits, so "45 days" is untouched.
+_DIGIT_SPACE = re.compile(r"(?<=\d)[\s ](?=\d)")
 _SPACE_PCT = re.compile(r"\s+%")
 _WS = re.compile(r"\s+")
 
@@ -54,6 +57,7 @@ def normalise(text: str) -> str:
     # writes "billing-head" where the source says "billing head".
     t = t.replace("-", " ")
     t = _DIGIT_COMMA.sub("", t)
+    t = _DIGIT_SPACE.sub("", t)
     t = _SPACE_PCT.sub("%", t)
     t = _WS.sub(" ", t)
     return t.strip()
