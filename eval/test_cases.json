@@ -1,0 +1,126 @@
+{
+  "_about": "Self-test set for the Legixo Q&A API. 15 cases: 10 single-source, 1 multi-source, 4 out-of-corpus. Facts transcribed from the fiction corpus in corpus/. Run with: python -m scripts.run_eval",
+  "_matching": "expected_contains items are matched after normalisation (lowercase, markdown/currency/comma stripping, whitespace collapse). A string item must appear; a list item is satisfied if ANY variant appears.",
+  "cases": [
+    {
+      "id": 1,
+      "question": "What is the notice period in the Bluecrest employment agreement?",
+      "expected_status": "answered",
+      "expected_sources": ["02_employment_agreement_excerpt.md"],
+      "expected_contains": ["60 days"],
+      "notes": "Single fact, single section."
+    },
+    {
+      "id": 2,
+      "question": "How long is the non-compete at Bluecrest and what limits it?",
+      "expected_status": "answered",
+      "expected_sources": ["02_employment_agreement_excerpt.md"],
+      "expected_contains": ["12 months", ["client list", "same city", "competitor"]],
+      "notes": "Multi-part answer from one section."
+    },
+    {
+      "id": 3,
+      "question": "When is the next hearing in Arvind Mehta v. Northfield Logistics and who will be examined?",
+      "expected_status": "answered",
+      "expected_sources": ["01_matter_memo_arvind_v_northfield.md"],
+      "expected_contains": [["15 august 2025", "15 aug 2025"], ["billing head"]],
+      "notes": "Date + person from the same memo."
+    },
+    {
+      "id": 4,
+      "question": "What is the limitation period for contract claims under the Riverside Code?",
+      "expected_status": "answered",
+      "expected_sources": ["01_matter_memo_arvind_v_northfield.md"],
+      "expected_contains": [["three years", "3 years"]],
+      "notes": "Fact sits in the memo, not the statute file - checks retrieval doesn't just pattern-match 'Riverside'."
+    },
+    {
+      "id": 5,
+      "question": "How many days before a hearing must written arguments be filed?",
+      "expected_status": "answered",
+      "expected_sources": ["03_hearing_notice_template.md"],
+      "expected_contains": [["seven clear days", "7 clear days"]],
+      "notes": "Number written as a word in the source."
+    },
+    {
+      "id": 6,
+      "question": "What happened in Lakeview Society v. City Water Board?",
+      "expected_status": "answered",
+      "expected_sources": ["03_hearing_notice_template.md"],
+      "expected_contains": [["adjourned"], ["22 september 2025", "22 sept 2025", "22 sep 2025"]],
+      "notes": "Second case in the listing - must not be confused with CV-2024-8812."
+    },
+    {
+      "id": 7,
+      "question": "When is mediation mandatory before trial, and how long must it last?",
+      "expected_status": "answered",
+      "expected_sources": ["04_statute_style_excerpt_fictional.md"],
+      "expected_contains": [["five lakh", "5 lakh"], ["30 days"]],
+      "notes": "Statute Section 14. Question asks for BOTH the threshold and the duration - the original wording ('when is mediation mandatory') only asked the condition, so omitting the 30 days was a fair answer and the assertion was unfair."
+    },
+    {
+      "id": 8,
+      "question": "What interest rate applies to delayed payments when the contract fixes no rate?",
+      "expected_status": "answered",
+      "expected_sources": ["04_statute_style_excerpt_fictional.md"],
+      "expected_contains": ["9%", ["simple interest", "per year", "simple"]],
+      "notes": "Statute Section 22. Model often writes '9 %' - normalisation handles it."
+    },
+    {
+      "id": 9,
+      "question": "What did Northfield offer in settlement and what was the client's counter instruction?",
+      "expected_status": "answered",
+      "expected_sources": ["05_counsel_notes_settlement.md"],
+      "expected_contains": ["70%", "85%"],
+      "notes": "Two numbers, both required - checks the answer isn't half-complete."
+    },
+    {
+      "id": 10,
+      "question": "What is the security deposit for Unit 4B and when is it refundable?",
+      "expected_status": "answered",
+      "expected_sources": ["06_property_lease_clause.md"],
+      "expected_contains": [["135000"], ["45 days"]],
+      "notes": "Currency symbol and Indian digit grouping stripped by normalisation."
+    },
+    {
+      "id": 11,
+      "question": "What time is case CV-2024-8812 listed, and what is the settlement posture in that matter?",
+      "expected_status": "answered",
+      "expected_sources": ["03_hearing_notice_template.md", "05_counsel_notes_settlement.md"],
+      "expected_contains": [["11:00", "11 a.m.", "11am"], ["70%"]],
+      "notes": "MULTI-SOURCE: must cite both the hearing notice and the counsel notes."
+    },
+    {
+      "id": 12,
+      "question": "What is the arbitration seat in the Bluecrest agreement?",
+      "expected_status": "not_found",
+      "expected_sources": [],
+      "expected_contains": [],
+      "notes": "OUT-OF-CORPUS: real document, but arbitration is never mentioned."
+    },
+    {
+      "id": 13,
+      "question": "What is the monthly rent for Unit 5C?",
+      "expected_status": "not_found",
+      "expected_sources": [],
+      "expected_contains": [],
+      "notes": "OUT-OF-CORPUS: corpus only covers Unit 4B. Tests entity precision, not topic matching."
+    },
+    {
+      "id": 14,
+      "question": "What is Priya Nambiar's salary?",
+      "expected_status": "not_found",
+      "expected_sources": [],
+      "expected_contains": [],
+      "notes": "OUT-OF-CORPUS: real person in the corpus, fact never stated."
+    },
+    {
+      "id": 15,
+      "question": "What is the notice period at Harbor Bean Roasters?",
+      "expected_status": "not_found",
+      "expected_sources": [],
+      "expected_contains": [],
+      "notes": "OUT-OF-CORPUS TRAP: splices the notice-period concept (file 02, Bluecrest) onto the tenant in file 06. Retrieval returns confident-looking chunks from both; only a real grounding check refuses it."
+    }
+  ]
+}

@@ -35,6 +35,21 @@ ANSWER_MAX_TOKENS = 1024
 UTILITY_MAX_TOKENS = 512
 
 
+def recursion_limit_for(max_attempts: int) -> int:
+    """Structural backstop, derived from the semantic cap rather than hardcoded.
+
+    Worst path (every grade insufficient, then abstain) visits:
+        normalize(1) + finalize(1) + no_answer(1)
+        + (max_attempts + 1) rounds of retrieve+grade
+        + max_attempts rewrites
+      = 3 + 2*(max_attempts + 1) + max_attempts  = 5 + 3*max_attempts
+
+    A fixed limit of 12 silently broke MAX_ATTEMPTS=3 (needs 14) — it surfaced as
+    an HTTP 500 instead of a clean refusal. +8 leaves headroom for future nodes.
+    """
+    return 3 * max_attempts + 8
+
+
 def build_graph(deps: GraphDeps):
     nodes = GraphNodes(deps)
     builder = StateGraph(AskState)

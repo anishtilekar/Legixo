@@ -7,7 +7,7 @@ from fastapi import FastAPI, Header, HTTPException
 from langgraph.errors import GraphRecursionError
 
 from app.config import get_settings
-from app.graph.build import build_graph, build_production_deps
+from app.graph.build import build_graph, build_production_deps, recursion_limit_for
 from app.ingest import ingest_corpus
 from app.schemas import AskRequest, AskResponse, Citation, IngestResponse
 from app.vectorstore import VectorStore
@@ -18,9 +18,9 @@ app = FastAPI(
     description="Grounded Q&A over a fictional legal corpus. LangGraph + Pinecone + Together.ai.",
 )
 
-# Structural backstop against a mis-wired edge causing an infinite loop. This is
-# independent of MAX_ATTEMPTS, which is the semantic cap inside the graph.
-RECURSION_LIMIT = 12
+# Structural backstop against a mis-wired edge causing an infinite loop. Derived
+# from MAX_ATTEMPTS (the semantic cap) so raising one can't silently break the
+# other — see recursion_limit_for().
 
 
 @lru_cache(maxsize=1)
@@ -58,12 +58,13 @@ def ask(req: AskRequest):
     if req.top_k:
         initial["top_k"] = req.top_k
 
+    limit = recursion_limit_for(get_settings().max_attempts)
     try:
-        final = graph.invoke(initial, config={"recursion_limit": RECURSION_LIMIT})
+        final = graph.invoke(initial, config={"recursion_limit": limit})
     except GraphRecursionError as exc:
         raise HTTPException(
             status_code=500,
-            detail=f"graph exceeded recursion limit of {RECURSION_LIMIT} — likely an edge-wiring bug",
+            detail=f"graph exceeded recursion limit of {limit} — likely an edge-wiring bug",
         ) from exc
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc

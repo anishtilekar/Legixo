@@ -96,3 +96,69 @@ measured distribution. Do not tune the floor without recording the score spread.
 `eval/test_cases.json` (15 cases), `scripts/run_eval.py`, `eval/results.md`, and the
 offline `tests/test_graph_branch.py` (stub retriever proving good path / loop-cap /
 fake-citation strip).
+
+Committed as `7d209df`.
+
+---
+
+## Phase 3 — Calibration, eval, offline branch tests (done)
+
+**Built:** `eval/test_cases.json` (15 cases), `scripts/calibrate.py` → `eval/calibration.md`,
+`scripts/run_eval.py` → `eval/results.md` (with `--repeat` for stability),
+`tests/test_graph_branch.py` (11 offline tests, stub retriever + stub chat models).
+
+**Exit criterion — met.** `pytest` 17/17 green and fully offline. Final eval run:
+**15/15 passed, out-of-corpus refusals 4/4**, at `--repeat 3` (45 live calls).
+
+### Calibration result — the floor cannot do the job, and that's now proven
+
+Measured over all 15 cases (embeddings only, no LLM):
+
+| set | min | mean | max |
+|---|---|---|---|
+| answerable `top_score` | 0.8383 | 0.8795 | 0.9170 |
+| out-of-corpus `top_score` | 0.8391 | 0.8563 | 0.8719 |
+
+The out-of-corpus band sits **inside** the answerable band. No absolute floor separates
+them; anything above 0.8383 causes false refusals. Margins overlap too (answerable
+0.0372–0.0992 vs out-of-corpus 0.0152–0.0722), so the relative test doesn't rescue it.
+
+**Decision: `RELEVANCE_FLOOR` stays 0.75** — deliberately far below the answerable
+minimum so it can never cause a false refusal. It is a coarse backstop for degenerate
+retrieval only; the LLM grader makes the real call. Retrieval recall was **15/15**, which
+proves failures here are grading failures, not retrieval failures. Full write-up in
+`eval/calibration.md`.
+
+### Defects found and fixed this phase
+
+1. **`recursion_limit` was hardcoded to 12 — a real latent production bug.** The
+   parametrised loop-cap test caught it: `MAX_ATTEMPTS=3` needs 14 steps, so raising the
+   (env-tunable!) `MAX_ATTEMPTS` turned graceful refusals into HTTP 500s. Replaced with
+   `recursion_limit_for(max_attempts) = 3*max_attempts + 8`, derived from the worst-path
+   walk, plus a test asserting it covers attempts 1–5. Default `MAX_ATTEMPTS=2` needed 11
+   and fit under 12 by a single step — it was one config change from breaking.
+2. **`eval/results.md` was gitignored** (added in Phase 1 by reflex). The brief names the
+   self-test file with pass/fail notes as a deliverable, so it must ship. Un-ignored.
+3. **Eval harness reported the wrong run.** With `--repeat`, the transcript written for a
+   failing case came from the *last* run, which was often a passing one — making
+   intermittent failures undiagnosable. Now records a failing run's transcript when one
+   exists.
+4. **Two unfair eval assertions**, fixed as eval bugs rather than by weakening the check:
+   case 3 expected `billing head` but the model writes `billing-head` (hyphens now
+   normalised to spaces on both sides); case 7 asked "when is mediation mandatory" while
+   asserting the 30-day duration — the question didn't ask for it, so the question was
+   reworded to request both facts.
+
+### Honest note on run-to-run variance
+
+The system is **not** perfectly deterministic. Across three full `--repeat 3` sweeps
+(~135 case-runs) two individual runs failed: case 4 once (false refusal) and case 6 once.
+That is roughly a 1–2% per-case-run failure rate, all in the same direction — refusing a
+question it could have answered, never fabricating an answer or a citation. The final
+recorded run is a clean 15/15, but a reviewer re-running it may see 14/15. Reducing this
+further would mean self-consistency on the grader (2-of-3 voting), which triples grader
+cost for a marginal gain — noted as a deliberate trade-off, not an oversight.
+
+**State for Phase 4:** all code paths done and verified. Remaining: `README.md`,
+`docs/langgraph.md`, the video script, LangSmith wiring behind
+`LANGCHAIN_TRACING_V2`, then the clean-clone rehearsal.

@@ -6,5 +6,6 @@ __pycache__/
 .pytest_cache/
 *.egg-info/
 .ruff_cache/
-eval/results.md
 .langgraph_api/
+# NOTE: eval/results.md and eval/calibration.md are generated but ARE committed —
+# the brief asks for the self-test file with pass/fail notes as a deliverable.
