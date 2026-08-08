@@ -47,5 +47,52 @@ metadata schema is `chunk_id, source_path, source_file, heading_path, chunk_inde
 char_start, char_end, content_hash, text` — Phase 2's `retrieve` node reads these
 directly off Pinecone match metadata, no second lookup needed.
 
-**Not yet committed to git** — first commit happens at the end of this phase, next
-message.
+Committed as `127d49e`.
+
+---
+
+## Phase 2 — LangGraph + /ask (done)
+
+**Built:** `app/prompts.py` (grade/rewrite/answer), `app/graph/state.py` (AskState with
+`operator.add` reducers on `trace` and `queries`), `app/graph/nodes.py` (8 nodes + 2
+routers, deps injected via `GraphDeps` so tests can stub the retriever),
+`app/graph/build.py` (StateGraph wiring + `build_production_deps`), `POST /ask` in
+`app/main.py` with `GraphRecursionError` → HTTP 500.
+
+**Exit criterion — met and exceeded.** Three known questions returned correct answers
+citing the correct source file; also verified 4 more good answers and 4 out-of-corpus
+refusals (all `not_found`, 0 citations), including the Harbor Bean Roasters trap.
+Trace confirms the loop: retrieve→grade→rewrite→retrieve→grade→rewrite→retrieve→grade→
+no_answer→finalize, i.e. exactly `MAX_ATTEMPTS=2` rewrites then abstain.
+
+**Model behaviour verified before building** (cheap de-risking): `gpt-oss-20b` handles
+`with_structured_output` correctly in both directions and emits `[S#]` markers without
+citing irrelevant chunks.
+
+**Three real defects found and fixed during this phase:**
+1. *Grader retry was missing.* Plan called for "tolerant parser, one retry, then fail
+   safe"; only the fail-safe existed. A transient API error surfaced it live. Added the
+   retry and full exception capture (previously the error text was self-truncated and
+   undiagnosable).
+2. *Stripping a fabricated marker left the hallucinated claim behind.* Removing just
+   `[S9]` left "Arbitration seat is Mumbai ." sitting in the answer as an **uncited**
+   assertion — worse than a visible fake citation. Now drops the whole sentence carrying
+   the bad marker; if nothing survives, routes to `no_answer`.
+3. *False refusals from missing markers (the big one).* The answer model intermittently
+   produced a correct answer with **no** `[S#]` marker; verification then rightly
+   discarded it, turning a good answer into a refusal. Measured 4/6 pass on "Can the
+   lessee sublet Unit 4B?". Fixed with an explicit good/bad example in `ANSWER_SYSTEM`
+   plus one corrective retry in `generate_answer` (never fabricates a marker). Now 8/8.
+
+**Calibration data for Phase 3 — important.** E5 score compression is exactly as the plan
+predicted: observed `top_score` sits in **0.828–0.857** for *both* answerable and
+out-of-corpus questions, with `margin` only **0.015–0.033**. The `RELEVANCE_FLOOR=0.75`
+short-circuit therefore **never fires** — every branch decision is currently made by the
+LLM grader alone. Phase 3 must either raise the floor into the ~0.83 band (risky, the
+bands overlap) or accept that the floor is only a coarse backstop and document it with the
+measured distribution. Do not tune the floor without recording the score spread.
+
+**State for Phase 3:** graph is live and stable; both paths verified by hand. Still to do:
+`eval/test_cases.json` (15 cases), `scripts/run_eval.py`, `eval/results.md`, and the
+offline `tests/test_graph_branch.py` (stub retriever proving good path / loop-cap /
+fake-citation strip).
