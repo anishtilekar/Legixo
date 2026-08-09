@@ -24,9 +24,19 @@ Retriever = Callable[[str, int], list[dict[str, Any]]]
 _MARKER_RE = re.compile(r"\[S(\d+)\]")
 # Split after sentence-final punctuation, keeping the delimiter with the sentence.
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
-# How much of each chunk the grader sees. The grader judges relevance, not
-# wording, so it doesn't need full text — this cuts grader input ~65%.
-_GRADER_SNIPPET_CHARS = 300
+
+# The grader sees FULL chunk text.
+#
+# This was previously truncated to 300 chars to cut grader input tokens. That was
+# a premature optimisation and it caused false refusals at corpus scale: a chunk
+# whose answer sits past the cut (e.g. the court-fee cap in "Item 4", after the
+# Item 1 preamble) looks genuinely incomplete to the grader, which then correctly
+# reports it cannot see the fact — and the question is refused despite the right
+# chunk having been retrieved at rank 1.
+#
+# Chunks are hard-capped at 380 tokens, so full text is bounded and the extra
+# cost is fractions of a cent per query. Correctness wins.
+_GRADER_SNIPPET_CHARS: int | None = None
 
 
 class GradeVerdict(BaseModel):
@@ -133,7 +143,8 @@ class GraphNodes:
         blocks = []
         for i, c in enumerate(context, start=1):
             md = c["metadata"]
-            snippet = md.get("text", "")[:_GRADER_SNIPPET_CHARS]
+            text = md.get("text", "")
+            snippet = text if _GRADER_SNIPPET_CHARS is None else text[:_GRADER_SNIPPET_CHARS]
             blocks.append(f"[S{i}] ({md.get('heading_path', '')}) {snippet}")
         rendered = "\n".join(blocks)
 

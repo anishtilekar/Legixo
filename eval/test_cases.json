@@ -1,6 +1,7 @@
 {
-  "_about": "Self-test set for the Legixo Q&A API. 15 cases: 10 single-source, 1 multi-source, 4 out-of-corpus. Facts transcribed from the fiction corpus in corpus/. Run with: python -m scripts.run_eval",
-  "_matching": "expected_contains items are matched after normalisation (lowercase, markdown/currency/comma stripping, whitespace collapse). A string item must appear; a list item is satisfied if ANY variant appears.",
+  "_about": "Self-test set for the Legixo Q&A API. 30 cases over a 30-file / 93-chunk corpus: 20 single-source, 4 multi-source, 6 out-of-corpus. Facts transcribed from corpus/. Run with: python -m scripts.run_eval",
+  "_matching": "expected_contains items are matched after normalisation (lowercase; markdown, currency, comma/space digit grouping and hyphens collapsed). A string item must appear; a list item is satisfied if ANY variant appears. expected_sources = ALL must be cited. expected_sources_any = at least one must be cited (for facts stated in more than one document).",
+  "_distractors": "The corpus deliberately contains three employment agreements with different notice periods (Bluecrest 60d, Vantage 30d, Meridian 90d) and three leases with different units/deposits. Answering correctly requires picking the right document, not just the right topic.",
   "cases": [
     {
       "id": 1,
@@ -8,7 +9,7 @@
       "expected_status": "answered",
       "expected_sources": ["02_employment_agreement_excerpt.md"],
       "expected_contains": ["60 days"],
-      "notes": "Single fact, single section."
+      "notes": "DISTRACTOR TEST: two other employment agreements state 30 and 90 days."
     },
     {
       "id": 2,
@@ -30,25 +31,25 @@
       "id": 4,
       "question": "What is the limitation period for contract claims under the Riverside Code?",
       "expected_status": "answered",
-      "expected_sources": ["01_matter_memo_arvind_v_northfield.md"],
+      "expected_sources_any": ["01_matter_memo_arvind_v_northfield.md", "14_statute_limitation_act.md"],
       "expected_contains": [["three years", "3 years"]],
-      "notes": "Fact sits in the memo, not the statute file - checks retrieval doesn't just pattern-match 'Riverside'."
+      "notes": "Stated in the memo and now also in the Limitation Act - either citation is correct."
     },
     {
       "id": 5,
       "question": "How many days before a hearing must written arguments be filed?",
       "expected_status": "answered",
-      "expected_sources": ["03_hearing_notice_template.md"],
+      "expected_sources_any": ["03_hearing_notice_template.md", "17_hearing_notice_march_list.md"],
       "expected_contains": [["seven clear days", "7 clear days"]],
-      "notes": "Number written as a word in the source."
+      "notes": "Rule appears in both hearing notices; citing either is correct."
     },
     {
       "id": 6,
       "question": "What happened in Lakeview Society v. City Water Board?",
       "expected_status": "answered",
-      "expected_sources": ["03_hearing_notice_template.md"],
+      "expected_sources_any": ["03_hearing_notice_template.md", "11_matter_memo_lakeview_v_city_water.md"],
       "expected_contains": [["adjourned"], ["22 september 2025", "22 sept 2025", "22 sep 2025"]],
-      "notes": "Second case in the listing - must not be confused with CV-2024-8812."
+      "notes": "Now covered by a dedicated memo as well as the listing."
     },
     {
       "id": 7,
@@ -56,7 +57,7 @@
       "expected_status": "answered",
       "expected_sources": ["04_statute_style_excerpt_fictional.md"],
       "expected_contains": [["five lakh", "5 lakh"], ["30 days"]],
-      "notes": "Statute Section 14. Question asks for BOTH the threshold and the duration - the original wording ('when is mediation mandatory') only asked the condition, so omitting the 30 days was a fair answer and the assertion was unfair."
+      "notes": "Statute Section 14. Asks for BOTH threshold and duration."
     },
     {
       "id": 8,
@@ -64,7 +65,7 @@
       "expected_status": "answered",
       "expected_sources": ["04_statute_style_excerpt_fictional.md"],
       "expected_contains": ["9%", ["simple interest", "per year", "simple"]],
-      "notes": "Statute Section 22. Model often writes '9 %' - normalisation handles it."
+      "notes": "Statute Section 22."
     },
     {
       "id": 9,
@@ -72,7 +73,7 @@
       "expected_status": "answered",
       "expected_sources": ["05_counsel_notes_settlement.md"],
       "expected_contains": ["70%", "85%"],
-      "notes": "Two numbers, both required - checks the answer isn't half-complete."
+      "notes": "Two numbers, both required."
     },
     {
       "id": 10,
@@ -80,7 +81,7 @@
       "expected_status": "answered",
       "expected_sources": ["06_property_lease_clause.md"],
       "expected_contains": [["135000"], ["45 days"]],
-      "notes": "Currency symbol and Indian digit grouping stripped by normalisation."
+      "notes": "DISTRACTOR TEST: two other leases hold 2,34,000 (60 days) and 3,60,000 (30 days)."
     },
     {
       "id": 11,
@@ -92,22 +93,158 @@
     },
     {
       "id": 12,
-      "question": "What is the arbitration seat in the Bluecrest agreement?",
-      "expected_status": "not_found",
-      "expected_sources": [],
-      "expected_contains": [],
-      "notes": "OUT-OF-CORPUS: real document, but arbitration is never mentioned."
+      "question": "What is the notice period at Vantage Freight Services?",
+      "expected_status": "answered",
+      "expected_sources": ["07_employment_agreement_vantage.md"],
+      "expected_contains": ["30 days"],
+      "notes": "DISTRACTOR TEST: must not return Bluecrest's 60 days or Meridian's 90 days."
     },
     {
       "id": 13,
+      "question": "How long is the notice period at Meridian Health Analytics, and what is garden leave there?",
+      "expected_status": "answered",
+      "expected_sources": ["08_employment_agreement_meridian.md"],
+      "expected_contains": ["90 days", ["garden leave"]],
+      "notes": "DISTRACTOR TEST plus a second fact from the same clause."
+    },
+    {
+      "id": 14,
+      "question": "What is the security deposit for Unit 9C at Summit Plaza?",
+      "expected_status": "answered",
+      "expected_sources": ["09_lease_unit_9c_summit.md"],
+      "expected_contains": [["234000"]],
+      "notes": "DISTRACTOR TEST: three leases with different deposits."
+    },
+    {
+      "id": 15,
+      "question": "Can Copperline Studios sublet Unit 9C?",
+      "expected_status": "answered",
+      "expected_sources": ["09_lease_unit_9c_summit.md"],
+      "expected_contains": [["permitted", "allowed", "yes"], ["written consent"]],
+      "notes": "Opposite answer to Unit 4B, where subletting is NOT allowed - tests entity precision."
+    },
+    {
+      "id": 16,
+      "question": "What was awarded in the judgment in Copperline Studios v. Vantage Freight?",
+      "expected_status": "answered",
+      "expected_sources": ["19_judgment_summary_copperline.md"],
+      "expected_contains": [["850000"], ["9%"]],
+      "notes": "Judgment summary with damages, interest and costs."
+    },
+    {
+      "id": 17,
+      "question": "What is the limitation period for claims in tort under the Riverside Limitation Act?",
+      "expected_status": "answered",
+      "expected_sources": ["14_statute_limitation_act.md"],
+      "expected_contains": [["two years", "2 years"]],
+      "notes": "DISTRACTOR TEST: contract claims are three years in the same document."
+    },
+    {
+      "id": 18,
+      "question": "How far in advance must an expert affidavit be filed?",
+      "expected_status": "answered",
+      "expected_sources": ["15_statute_evidence_rules.md"],
+      "expected_contains": [["fourteen days", "14 days"]],
+      "notes": "DISTRACTOR TEST: 'seven clear days' for written arguments is a nearby competing deadline."
+    },
+    {
+      "id": 19,
+      "question": "What is the maximum court fee payable on a single suit?",
+      "expected_status": "answered",
+      "expected_sources": ["16_statute_court_fees.md"],
+      "expected_contains": [["200000"]],
+      "notes": "Court fees schedule, Item 4."
+    },
+    {
+      "id": 20,
+      "question": "How long do confidentiality obligations last under the Bluecrest-Meridian NDA?",
+      "expected_status": "answered",
+      "expected_sources": ["20_nda_two_way.md"],
+      "expected_contains": [["three years", "3 years"]],
+      "notes": "DISTRACTOR TEST: several other 'three year' periods exist in the corpus."
+    },
+    {
+      "id": 21,
+      "question": "What uptime must Dockside maintain, and what service credit applies below 98%?",
+      "expected_status": "answered",
+      "expected_sources": ["21_vendor_sla_agreement.md"],
+      "expected_contains": [["99.5%"], ["15%"]],
+      "notes": "Two-part answer; must pick the correct credit tier of the two listed."
+    },
+    {
+      "id": 22,
+      "question": "How long must financial and billing records be retained?",
+      "expected_status": "answered",
+      "expected_sources": ["26_compliance_data_retention_policy.md"],
+      "expected_contains": [["seven years", "7 years"]],
+      "notes": "DISTRACTOR TEST: the same policy lists three-year and ten-year periods."
+    },
+    {
+      "id": 23,
+      "question": "What retainer does the Copperline engagement letter require?",
+      "expected_status": "answered",
+      "expected_sources": ["28_client_engagement_letter.md"],
+      "expected_contains": [["150000"]],
+      "notes": "Fee terms."
+    },
+    {
+      "id": 24,
+      "question": "Which invoice is disputed in the Northfield matter and for how much?",
+      "expected_status": "answered",
+      "expected_sources": ["25_billing_dispute_invoice_summary.md"],
+      "expected_contains": [["inv 2024 0618", "inv20240618", "0618"], ["405000"]],
+      "notes": "Requires picking the disputed row out of a three-row table."
+    },
+    {
+      "id": 25,
+      "question": "In the Meridian v. Bluecrest injunction, what security must the plaintiff deposit and by when?",
+      "expected_status": "answered",
+      "expected_sources": ["18_order_interim_injunction.md"],
+      "expected_contains": [["500000"], ["fourteen days", "14 days"]],
+      "notes": "Order sheet: amount plus deadline."
+    },
+    {
+      "id": 26,
+      "question": "What is the licence dispute in Meridian v. Bluecrest about, and what security was ordered?",
+      "expected_status": "answered",
+      "expected_sources": ["13_matter_memo_meridian_v_bluecrest.md", "18_order_interim_injunction.md"],
+      "expected_contains": [["dataset", "licence", "license"], ["500000"]],
+      "notes": "MULTI-SOURCE: background from the memo, the security figure from the order."
+    },
+    {
+      "id": 27,
+      "question": "What was the declared value of the Copperline consignment, and what did the court finally award?",
+      "expected_status": "answered",
+      "expected_sources": ["12_matter_memo_copperline_v_vantage.md", "19_judgment_summary_copperline.md"],
+      "expected_contains": [["940000"], ["850000"]],
+      "notes": "MULTI-SOURCE: claim memo plus judgment - two different figures that must not be conflated."
+    },
+    {
+      "id": 28,
+      "question": "What is the notice period at Copperline Studios?",
+      "expected_status": "not_found",
+      "expected_sources": [],
+      "expected_contains": [],
+      "notes": "OUT-OF-CORPUS TRAP: Copperline appears in a lease, an IP assignment and an engagement letter, but has NO employment agreement. Three other notice periods exist in the corpus to tempt the model."
+    },
+    {
+      "id": 29,
+      "question": "What is the notice period at Harbor Bean Roasters?",
+      "expected_status": "not_found",
+      "expected_sources": [],
+      "expected_contains": [],
+      "notes": "OUT-OF-CORPUS TRAP: splices the notice-period concept onto a tenant that only appears in a lease."
+    },
+    {
+      "id": 30,
       "question": "What is the monthly rent for Unit 5C?",
       "expected_status": "not_found",
       "expected_sources": [],
       "expected_contains": [],
-      "notes": "OUT-OF-CORPUS: corpus only covers Unit 4B. Tests entity precision, not topic matching."
+      "notes": "OUT-OF-CORPUS: corpus has Units 4B, 9C and W-2, never 5C."
     },
     {
-      "id": 14,
+      "id": 31,
       "question": "What is Priya Nambiar's salary?",
       "expected_status": "not_found",
       "expected_sources": [],
@@ -115,12 +252,20 @@
       "notes": "OUT-OF-CORPUS: real person in the corpus, fact never stated."
     },
     {
-      "id": 15,
-      "question": "What is the notice period at Harbor Bean Roasters?",
+      "id": 32,
+      "question": "What is Rohit Desai's annual salary at Vantage Freight?",
       "expected_status": "not_found",
       "expected_sources": [],
       "expected_contains": [],
-      "notes": "OUT-OF-CORPUS TRAP: splices the notice-period concept (file 02, Bluecrest) onto the tenant in file 06. Retrieval returns confident-looking chunks from both; only a real grounding check refuses it."
+      "notes": "OUT-OF-CORPUS: his agreement states notice and probation, never pay."
+    },
+    {
+      "id": 33,
+      "question": "What is the arbitration seat in the Bluecrest agreement?",
+      "expected_status": "not_found",
+      "expected_sources": [],
+      "expected_contains": [],
+      "notes": "OUT-OF-CORPUS: arbitration is never mentioned anywhere in the corpus."
     }
   ]
 }

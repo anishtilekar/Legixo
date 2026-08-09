@@ -275,3 +275,80 @@ separators only *between digits*, so `45 days` stays untouched.
 
 **Remaining (user action only):** record the demo video from the video script, create
 the GitHub remote, and push.
+
+---
+
+## Phase 6 — Corpus + eval expansion (PAUSED MID-PHASE)
+
+> **Status: corpus and eval done, one real defect fixed, 6 failures still open.**
+> Paused at user request. Resume instructions at the bottom of this entry.
+
+**Built:** corpus grown 6 → **30 files**, 15 → **93 chunks**. Eval grown 15 → **33 cases**
+(24 single-source, 3 multi-source, 6 out-of-corpus). `expected_sources_any` semantics added
+to `run_eval.py` + `calibrate.py` for facts legitimately stated in more than one document.
+
+**Why the corpus grew:** at 15 chunks, `TOP_K=5` returned a third of the corpus on every
+query, so retrieval recall was a meaningless 15/15 and the brief's remaining extras
+(reranker, hybrid) had nothing to improve. At 93 chunks a query sees ~5%, so retrieval is
+finally a real problem. **Deliberate distractors** were built in: three employment
+agreements with different notice periods (Bluecrest 60d / Vantage 30d / Meridian 90d) and
+three leases with different units and deposits, so answering requires picking the right
+*document*, not just the right topic.
+
+### Defect found and fixed: grader input was truncated
+
+`_GRADER_SNIPPET_CHARS = 300` (a Phase 2 token optimisation) fed the grader only the first
+300 characters of each chunk. At the original scale every fact sat inside that window. At
+30 files it does not — e.g. the court-fee cap lives in "Item 4", past the Item 1 preamble.
+The grader saw a genuinely incomplete excerpt, correctly reported it could not see the
+fact, and the question was refused **even though the right chunk was retrieved at rank 1**.
+
+That optimisation was saving well under a cent per run and costing ~30% of the eval.
+Grader now gets full chunk text (bounded anyway by the 380-token chunk ceiling).
+
+**Effect: 23/33 → 27/33.** Out-of-corpus refusals held at **6/6** throughout — grounding
+discipline never regressed, which is the failure direction that matters.
+
+### Calibration at scale — a much stronger result than at n=15
+
+| set | min | mean | max |
+|---|---|---|---|
+| answerable `top_score` | 0.8385 | 0.8766 | 0.9170 |
+| out-of-corpus `top_score` | 0.8419 | 0.8634 | **0.9085** |
+
+The overlap is now *worse*, and far more convincingly so: case 32 ("Rohit Desai's salary")
+scores **0.9085** — higher than almost every answerable question — because it retrieves his
+employment agreement, which is topically perfect and simply never states pay. This is a
+much better demonstration than the n=15 version that **no similarity threshold can decide
+groundedness**. `RELEVANCE_FLOOR` stays 0.75 as a coarse backstop.
+
+File-level retrieval recall: **32/33**. Note this metric is *generous* — it asks whether
+the right file appeared in top-k, not whether the chunk containing the answer did.
+
+### The 6 open failures — all retrieval-precision, diagnosed not guessed
+
+Target-document rank in top-5 for the failing cases:
+
+| case | target rank | what outranked it |
+|---|---|---|
+| 1 (Bluecrest notice) | 1 | correct chunk is rank 1 — grader/answer issue, not retrieval |
+| 3 (next hearing) | **not in top-5** | witness statement, counsel notes, invoice summary |
+| 16 (Copperline judgment) | 2 | engagement letter |
+| 23 (Copperline retainer) | 5 | three chunks of the IP assignment |
+| 27 (declared value + award) | 5 | IP assignment, engagement letter |
+
+The pattern is clear and consistent: **dense E5 locks onto the entity name ("Copperline")
+and misses the discriminating term ("retainer", "declared value")**. That is precisely the
+weakness lexical/sparse retrieval fixes, so Phase 7 is now motivated by measured evidence
+rather than by the brief listing it as an extra.
+
+### Resume here
+
+1. Case 1 is the odd one out — target at rank 1 yet still refused. Diagnose separately
+   (likely the answer node or grader strictness, *not* retrieval).
+2. Then Phase 7: sparse index + RRF fusion + `bge-reranker-v2-m3` node, config-gated, and
+   `scripts/ablation.py` across the 4 configs. Cases 3/16/23/27 are the natural before/after
+   evidence.
+3. the video script, `README.md` and `PROJECT_CONSTANTS.md` still quote the **old 6-file / 15-chunk
+   / 15-case** numbers — all must be updated before the video.
+4. Phases 8–9 (CI, Docker, robustness, web UI) not started.

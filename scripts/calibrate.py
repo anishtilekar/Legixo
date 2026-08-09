@@ -47,7 +47,11 @@ def main() -> int:
         margin = top - (sum(rest) / len(rest)) if rest else top
 
         retrieved_files = [m["metadata"]["source_path"].split("/")[-1] for m in matches]
-        expected = set(case["expected_sources"])
+        # A case states either required sources or acceptable alternatives; for
+        # recall purposes any expected file appearing in top-k counts as a hit.
+        expected = set(case.get("expected_sources") or []) | set(
+            case.get("expected_sources_any") or []
+        )
         hit = (not expected) or bool(expected & set(retrieved_files))
 
         rows.append(

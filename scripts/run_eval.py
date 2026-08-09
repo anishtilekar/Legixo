@@ -72,9 +72,16 @@ def check_case(case: dict, payload: dict) -> tuple[bool, list[str]]:
         failures.append(f"status: got {status!r}, expected {case['expected_status']!r}")
 
     cited_files = {c["source_path"].split("/")[-1] for c in payload.get("citations", [])}
-    for want in case["expected_sources"]:
+    for want in case.get("expected_sources") or []:
         if want not in cited_files:
             failures.append(f"missing citation: {want} (cited: {sorted(cited_files) or 'none'})")
+
+    # Some facts are legitimately stated in more than one document (e.g. the
+    # "seven clear days" rule appears in both hearing notices). Citing any one of
+    # them is correct, so those cases list alternatives instead of requirements.
+    any_of = case.get("expected_sources_any") or []
+    if any_of and not (set(any_of) & cited_files):
+        failures.append(f"expected any of {any_of} (cited: {sorted(cited_files) or 'none'})")
 
     if case["expected_status"] == "not_found" and payload.get("citations"):
         failures.append(f"refused but still returned {len(payload['citations'])} citation(s)")
@@ -194,7 +201,10 @@ def write_results_md(results: list[dict], health: dict, args) -> None:
         c, p = r["case"], r["payload"]
         lines.append(f"**{c['id']}. {c['question']}**")
         lines.append("")
-        lines.append(f"- Expected: `{c['expected_status']}`, sources: {c['expected_sources'] or 'none'}")
+        want_sources = (c.get("expected_sources") or []) or (
+            [f"any of {c['expected_sources_any']}"] if c.get("expected_sources_any") else []
+        )
+        lines.append(f"- Expected: `{c['expected_status']}`, sources: {want_sources or 'none'}")
         lines.append(f"- Got: `{p.get('status')}` after {p.get('attempts')} attempt(s)")
         answer = (p.get("answer") or "").replace("\n", " ")
         lines.append(f"- Answer: {answer[:300]}")
