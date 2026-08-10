@@ -30,9 +30,27 @@ that must never drift between phases/sessions.
   `pinecone`/`langchain-together`/`langgraph` deps — do not use it.
 - Venv at `C:\Users\Admin\Legixo\.venv`.
 
-## Graph (8 nodes, see docs/langgraph.md once written)
-normalize_question → retrieve → grade_context →(branch)→ generate_answer | rewrite_query(loop back to retrieve, capped by MAX_ATTEMPTS) → verify_citations →(branch)→ finalize | no_answer → finalize
-- `MAX_ATTEMPTS=2` in state (env-tunable) + `recursion_limit=12` on `.invoke()`.
+## Graph (9 nodes, see docs/langgraph.md)
+normalize_question → retrieve → rerank → grade_context →(branch)→ generate_answer | rewrite_query(loop back to retrieve, capped by MAX_ATTEMPTS) → verify_citations →(branch)→ finalize | no_answer → finalize
+- `MAX_ATTEMPTS=2` in state (env-tunable) + `recursion_limit_for(n) = 4*n + 8` on `.invoke()`
+  — **derived, never hardcoded**; adding a per-round node changes it.
+- `rerank` is a pass-through unless `RERANK_ENABLED=true`.
+- `grade_context` gets **full chunk text**. Truncating it caused false refusals when the
+  answer sat past the cut.
+- `generate_answer` must see the **same** context the grader approved — never a top_k slice.
+
+## Retrieval
+- `RETRIEVAL_MODE=dense|hybrid`. Hybrid adds a sparse companion index
+  (`legixo-qa-sparse`, `pinecone-sparse-english-v0`) fused with dense by RRF (k=60).
+- `RERANK_ENABLED` uses Pinecone `bge-reranker-v2-m3` (free tier: **500 req/month**).
+- The relevance floor always reads **dense cosine** (`app/retrieval.max_dense_score`), so
+  changing retrieval mode can't silently redefine the threshold.
+- Defaults follow whatever `eval/ablation.md` measured best.
+
+## Corpus / eval scale
+- 30 files, **93 chunks**. Contains deliberate distractors: three employment agreements
+  (60/30/90-day notice) and three leases with different units/deposits.
+- Eval: 33 cases (24 single-source, 3 multi-source, 6 out-of-corpus).
 
 ## API
 - `POST /ask`, `POST /admin/ingest` (header `X-Ingest-Token`), `GET /healthz`.

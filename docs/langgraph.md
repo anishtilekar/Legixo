@@ -1,8 +1,8 @@
 # LangGraph map
 
-The flow is a `StateGraph` with **8 nodes**, **2 conditional branches**, **1 loop**, and
+The flow is a `StateGraph` with **9 nodes**, **2 conditional branches**, **1 loop**, and
 **2 independent limits**. Nothing is hidden inside a single giant LLM call: retrieval,
-relevance grading, query rewriting, answering, and citation verification are separate
+reranking, relevance grading, query rewriting, answering, and citation verification are separate
 nodes with separate responsibilities.
 
 Source: [`app/graph/build.py`](../app/graph/build.py) (wiring),
@@ -15,7 +15,8 @@ Source: [`app/graph/build.py`](../app/graph/build.py) (wiring),
 graph TD
     START([START]) --> N1[normalize_question]
     N1 --> N2[retrieve]
-    N2 --> N3{grade_context}
+    N2 --> N2b[rerank]
+    N2b --> N3{grade_context}
 
     N3 -->|sufficient| N5[generate_answer]
     N3 -->|insufficient<br/>attempt < MAX_ATTEMPTS| N4[rewrite_query]
@@ -37,6 +38,7 @@ graph TD
 |---|---|---|---|
 | 1 | `normalize_question` | Trims/validates the question, seeds `queries`, initialises `attempt`, `top_k`, `max_attempts`, trace. Rejects an empty question. | no |
 | 2 | `retrieve` | Embeds the *current* query with the E5 instruct prefix, queries Pinecone `top_k`, merges hits into accumulated `context` deduped by `chunk_id` keeping the best score. | no |
+| 2b | `rerank` | Optional cross-encoder rerank of the accumulated context (`bge-reranker-v2-m3`). Retrieval is a bi-encoder, so a chunk can rank on entity-name overlap alone while missing the discriminating term; a cross-encoder reads query and passage together. **Pass-through when `RERANK_ENABLED=false`**, and falls back to retrieval order if the reranker errors. | no (hosted rerank) |
 | 3 | `grade_context` | **Branch decision.** Cheap deterministic pre-check (relevance floor), then a structured LLM grader returning `{sufficient, reason}`. One retry, then fails safe to `insufficient`. | yes |
 | 4 | `rewrite_query` | **Bad path.** Produces one alternative phrasing using document vocabulary, increments `attempt`, loops back to `retrieve`. | yes |
 | 5 | `generate_answer` | **Good path.** Renders context as numbered `[S1]…[Sn]` blocks with full chunk text, answers under strict grounding rules. Retries once if the model omits markers entirely. | yes |
@@ -75,13 +77,17 @@ Deliberately belt-and-braces, because they fail differently:
 The limit is **derived, not hardcoded**:
 
 ```python
-recursion_limit_for(max_attempts) = 3 * max_attempts + 8
+recursion_limit_for(max_attempts) = 4 * max_attempts + 8
 ```
 
-The worst path visits `5 + 3*max_attempts` nodes. An earlier hardcoded `12` fit
-`MAX_ATTEMPTS=2` (11 steps) by exactly one step, and broke at `MAX_ATTEMPTS=3` (14 steps)
-— turning a graceful refusal into an HTTP 500. `tests/test_graph_branch.py` asserts the
-derived limit covers attempts 1–5.
+The worst path visits `6 + 4*max_attempts` nodes: `normalize` + `no_answer` + `finalize`,
+plus `retrieve`/`rerank`/`grade_context` per round, plus one `rewrite_query` per attempt.
+
+Two separate incidents justify deriving this rather than hardcoding it. An earlier
+hardcoded `12` fit `MAX_ATTEMPTS=2` by exactly one step and broke at `MAX_ATTEMPTS=3`,
+turning a graceful refusal into an HTTP 500. Later, adding the `rerank` node grew the
+per-round cost from 2 nodes to 3 — which would have silently broken the limit again had it
+been a constant. `tests/test_graph_branch.py` asserts the derived limit covers attempts 1–5.
 
 ## Why citation verification is its own node
 

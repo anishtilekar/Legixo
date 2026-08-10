@@ -9,7 +9,7 @@ import logging
 from dataclasses import dataclass
 from pathlib import Path
 
-from app.chunking import chunk_markdown
+from app.chunking import chunk_markdown, document_context, embedding_text
 from app.config import Settings
 from app.llm import E5Embeddings
 from app.vectorstore import VectorStore
@@ -46,12 +46,19 @@ def ingest_corpus(
     if not files:
         raise FileNotFoundError(f"no .md files found in {corpus_root}")
 
+    hybrid = settings.retrieval_mode == "hybrid"
     store = None
     if not dry_run:
         store = VectorStore(settings)
         store.ensure_index()
         if reset:
             store.reset_namespace()
+        if hybrid:
+            # Sparse vectors live in a companion index; keep both sides in step so
+            # a chunk can never exist on one side only.
+            store.ensure_sparse_index()
+            if reset:
+                store.reset_sparse_namespace()
 
     embedder = E5Embeddings(settings) if not dry_run else None
 
@@ -74,7 +81,11 @@ def ingest_corpus(
             continue
 
         chunk_ids = {f"{source_path}#{c.chunk_index}" for c in chunks}
-        texts = [c.text for c in chunks]
+        # Embed document- and heading-prefixed text so a chunk of bare figures
+        # still carries the parties it belongs to; metadata keeps the raw text
+        # for citation display.
+        doc_ctx = document_context(text)
+        texts = [embedding_text(c.heading_path, c.text, doc_ctx) for c in chunks]
         embeddings = embedder.embed_documents(texts)
 
         vectors = []
@@ -99,6 +110,20 @@ def ingest_corpus(
             )
 
         total_upserted += store.upsert(vectors)
+
+        if hybrid:
+            sparse_embs = store.embed_sparse(texts, input_type="passage")
+            store.upsert_sparse(
+                [
+                    {
+                        "id": v["id"],
+                        "sparse_values": se,
+                        "metadata": v["metadata"],
+                    }
+                    for v, se in zip(vectors, sparse_embs)
+                ]
+            )
+
         if prune and not reset:
             total_pruned += store.prune_stale(source_path, chunk_ids)
 

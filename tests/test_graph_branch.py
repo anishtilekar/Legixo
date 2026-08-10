@@ -71,7 +71,7 @@ def make_chunk(chunk_id: str, text: str, score: float = 0.9) -> dict:
     }
 
 
-def build(verdicts, answers, *, hits=None, max_attempts=2):
+def build(verdicts, answers, *, hits=None, max_attempts=2, reranker=None):
     calls: list[str] = []
     chunks = hits if hits is not None else [make_chunk("a.md#0", "Notice is 60 days.")]
 
@@ -86,6 +86,7 @@ def build(verdicts, answers, *, hits=None, max_attempts=2):
         retriever=retriever,
         chat=answer_chat,
         utility_chat=utility,
+        reranker=reranker,
     )
     graph = build_graph(deps)
     return graph, calls, utility, answer_chat
@@ -102,7 +103,9 @@ def test_recursion_limit_covers_the_worst_path():
     """The derived limit must exceed the longest possible walk, or a legitimate
     refusal surfaces as a crash. A hardcoded 12 broke at max_attempts=3."""
     for max_attempts in range(1, 6):
-        worst_path_steps = 5 + 3 * max_attempts
+        # normalize + finalize + no_answer, plus retrieve/rerank/grade per round,
+        # plus one rewrite per attempt
+        worst_path_steps = 6 + 4 * max_attempts
         assert recursion_limit_for(max_attempts) > worst_path_steps
 
 
@@ -217,8 +220,46 @@ def test_trace_records_every_node_visited():
     assert nodes == [
         "normalize_question",
         "retrieve",
+        "rerank",
         "grade_context",
         "generate_answer",
         "verify_citations",
         "finalize",
     ]
+
+
+# --- rerank node -----------------------------------------------------------
+
+
+def test_rerank_disabled_is_a_transparent_pass_through():
+    graph, _, _, _ = build([True], ["Notice is 60 days [S1]."], reranker=None)
+    out = run(graph)
+    note = next(t["note"] for t in out["trace"] if t["node"] == "rerank")
+    assert "disabled" in note
+    assert out["status"] == "answered"
+
+
+def test_rerank_reorders_context_before_grading():
+    chunks = [make_chunk("wrong.md#0", "irrelevant", 0.9),
+              make_chunk("right.md#0", "Notice is 60 days.", 0.7)]
+
+    def reranker(query, candidates, top_n):
+        # cross-encoder promotes the genuinely relevant chunk
+        return sorted(candidates, key=lambda c: "Notice" in c["metadata"]["text"], reverse=True)
+
+    graph, _, _, answer_chat = build([True], ["Notice is 60 days [S1]."], hits=chunks, reranker=reranker)
+    out = run(graph)
+    assert out["context_used"][0]["metadata"]["chunk_id"] == "right.md#0"
+    assert out["status"] == "answered"
+
+
+def test_reranker_failure_falls_back_to_retrieval_order():
+    """A reranker outage must degrade to plain retrieval, not fail the request."""
+    def boom(query, candidates, top_n):
+        raise RuntimeError("rerank service down")
+
+    graph, _, _, _ = build([True], ["Notice is 60 days [S1]."], reranker=boom)
+    out = run(graph)
+    assert out["status"] == "answered"
+    note = next(t["note"] for t in out["trace"] if t["node"] == "rerank")
+    assert "error" in note

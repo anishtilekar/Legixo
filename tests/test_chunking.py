@@ -58,3 +58,24 @@ def test_chunk_tokens_above_ceiling_raises():
 
     with pytest.raises(AssertionError):
         chunk_markdown(SAMPLE, chunk_tokens=500, overlap_tokens=60)
+
+
+def test_embedding_text_prefixes_heading_context():
+    """A chunk of bare figures must still carry the entity it belongs to, or a
+    query naming those parties cannot retrieve it."""
+    from app.chunking import embedding_text
+
+    body = "- Damages: 8,50,000\n- Interest: 9% per year"
+    heading = "Judgment summary - CV-2025-1190 > Relief granted"
+    out = embedding_text(heading, body)
+
+    assert out.startswith(heading)
+    assert body in out
+    assert "CV-2025-1190" in out, "case number must reach the vector"
+
+
+def test_embedding_text_without_heading_is_unchanged():
+    from app.chunking import embedding_text
+
+    assert embedding_text("", "raw body") == "raw body"
+    assert embedding_text("   ", "raw body") == "raw body"

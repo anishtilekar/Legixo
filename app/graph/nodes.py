@@ -17,9 +17,12 @@ from pydantic import BaseModel, Field
 from app import prompts
 from app.config import Settings
 from app.graph.state import AskState
+from app.retrieval import max_dense_score
 
 # (query_text, top_k) -> [{id, score, metadata}, ...]
 Retriever = Callable[[str, int], list[dict[str, Any]]]
+# (query_text, candidates, top_n) -> reordered candidates
+Reranker = Callable[[str, list[dict[str, Any]], int], list[dict[str, Any]]]
 
 _MARKER_RE = re.compile(r"\[S(\d+)\]")
 # Split after sentence-final punctuation, keeping the delimiter with the sentence.
@@ -50,6 +53,7 @@ class GraphDeps:
     retriever: Retriever
     chat: BaseChatModel  # answering — quality matters most here
     utility_chat: BaseChatModel  # grading + rewriting
+    reranker: Reranker | None = None  # None -> rerank node is a pass-through
 
 
 def _now_ms() -> float:
@@ -109,6 +113,53 @@ class GraphNodes:
             ],
         }
 
+    # ---- 2b. rerank (optional; pass-through when disabled) --------------
+
+    def rerank(self, state: AskState) -> dict[str, Any]:
+        """Cross-encoder rerank of the accumulated context.
+
+        Retrieval is a bi-encoder: query and passage are embedded separately, so
+        a chunk can rank highly on entity-name overlap alone ("Copperline") while
+        missing the discriminating term ("retainer"). A cross-encoder reads both
+        together and reorders accordingly.
+
+        The node always exists in the graph so the shape stays stable and the
+        trace shows explicitly whether reranking ran.
+        """
+        started = _now_ms()
+        context = state.get("context", [])
+        if self.deps.reranker is None or not context:
+            return {
+                "trace": [{"node": "rerank", "note": "disabled (pass-through)", "ms": 0.0}]
+            }
+
+        top_k = state.get("top_k") or self.deps.settings.top_k
+        before = [c["metadata"]["chunk_id"] for c in context[:3]]
+        try:
+            reranked = self.deps.reranker(state["queries"][-1], context, top_k)
+        except Exception as exc:
+            return {
+                "trace": [
+                    {
+                        "node": "rerank",
+                        "note": f"reranker error, keeping retrieval order: {type(exc).__name__}",
+                        "ms": round(_now_ms() - started, 1),
+                    }
+                ]
+            }
+
+        after = [c["metadata"]["chunk_id"] for c in reranked[:3]]
+        return {
+            "context": reranked,
+            "trace": [
+                {
+                    "node": "rerank",
+                    "note": f"{len(context)} -> {len(reranked)} | top3 {before} -> {after}",
+                    "ms": round(_now_ms() - started, 1),
+                }
+            ],
+        }
+
     # ---- 3. grade (the branch decision) ---------------------------------
 
     def grade_context(self, state: AskState) -> dict[str, Any]:
@@ -116,8 +167,11 @@ class GraphNodes:
         context = state.get("context", [])
         floor = self.deps.settings.relevance_floor
 
+        # Floor was calibrated against dense cosine, so it must keep reading dense
+        # cosine in every retrieval mode — otherwise enabling hybrid or rerank
+        # would silently redefine the threshold.
         scores = [c["score"] for c in context]
-        top = max(scores) if scores else 0.0
+        top = max_dense_score(context) if context else 0.0
         rest = sorted(scores, reverse=True)[1:]
         margin = top - (sum(rest) / len(rest)) if rest else top
 

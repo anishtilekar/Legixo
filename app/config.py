@@ -23,6 +23,14 @@ class Settings(BaseSettings):
     pinecone_cloud: str = "aws"
     pinecone_region: str = "us-east-1"
 
+    # Retrieval strategy (see eval/ablation.md for the measurements behind the defaults)
+    retrieval_mode: str = "dense"  # "dense" | "hybrid"
+    rerank_enabled: bool = False
+    rerank_model: str = "bge-reranker-v2-m3"  # free tier: 500 req/month
+    rerank_candidates: int = 15  # widen recall before the reranker narrows it
+    pinecone_sparse_index_name: str = "legixo-qa-sparse"
+    pinecone_sparse_model: str = "pinecone-sparse-english-v0"
+
     # App
     corpus_dir: str = "corpus"
     chunk_tokens: int = 350

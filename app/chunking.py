@@ -124,3 +124,46 @@ def chunk_markdown(
             )
             idx += 1
     return chunks
+
+
+def document_context(markdown: str, *, max_chars: int = 260) -> str:
+    """Document-level identifying context: the H1 title plus the key/value lines
+    above the first section heading.
+
+    The heading path alone is not always enough. A judgment file is titled
+    "Judgment summary - CV-2025-1190", which carries the case *number* but not the
+    party *names* — those sit in the `**Matter:**` line beneath it. A user asking
+    "what was awarded in Copperline v. Vantage" therefore matched nothing in the
+    section that actually holds the award.
+    """
+    lines: list[str] = []
+    for raw in markdown.splitlines():
+        line = raw.strip()
+        if line.startswith("## "):
+            break
+        if not line:
+            continue
+        lines.append(line.lstrip("# ").strip())
+    ctx = " | ".join(lines)
+    return ctx[:max_chars]
+
+
+def embedding_text(heading_path: str, text: str, doc_context: str = "") -> str:
+    """Text actually sent to the embedding model: document context + heading path
+    + chunk body.
+
+    Sections are embedded in isolation otherwise, which loses the entity the chunk
+    belongs to. The "Relief granted" section of a judgment reads:
+
+        - Damages: **Rs 8,50,000**
+        - Interest: **9% per year** ...
+
+    with no mention of the parties or case number anywhere in it, so a query naming
+    those parties could not retrieve it — it ranked outside the top 12 while the
+    document's title chunk ranked 2nd. Prefixing restores that context for the
+    vector without changing the `text` stored in metadata, which stays the raw
+    chunk used for citation display.
+    """
+    parts = [p for p in (doc_context.strip(), (heading_path or "").strip()) if p]
+    prefix = "\n".join(parts)
+    return f"{prefix}\n\n{text}" if prefix else text
