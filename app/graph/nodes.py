@@ -25,6 +25,20 @@ Retriever = Callable[[str, int], list[dict[str, Any]]]
 Reranker = Callable[[str, list[dict[str, Any]], int], list[dict[str, Any]]]
 
 _MARKER_RE = re.compile(r"\[S(\d+)\]")
+
+# The model does not always use ASCII brackets. It has been observed emitting
+# full-width CJK brackets — 【S1】 — which the ASCII-only pattern missed, so a
+# correct and properly cited answer was discarded as ungrounded and returned as
+# a refusal. Normalise every known bracket variant to [S#] before parsing.
+_MARKER_VARIANTS = re.compile(
+    r"[\[【［❲⦋]\s*S\s*(\d+)\s*[\]】］❳⦌]",
+    re.IGNORECASE,
+)
+
+
+def normalise_markers(text: str) -> str:
+    """Rewrite bracket variants around citation markers to plain ASCII [S#]."""
+    return _MARKER_VARIANTS.sub(lambda m: f"[S{m.group(1)}]", text)
 # Split after sentence-final punctuation, keeping the delimiter with the sentence.
 _SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
@@ -317,6 +331,7 @@ class GraphNodes:
         # Verification would then (rightly) discard it as ungrounded, turning a
         # good answer into a false refusal — so give it one corrective retry
         # rather than inventing a citation for it.
+        answer = normalise_markers(answer)
         needs_marker = answer and not answer.upper().startswith("INSUFFICIENT_CONTEXT")
         if needs_marker and not _MARKER_RE.search(answer):
             retry = self.deps.chat.invoke(
@@ -331,7 +346,7 @@ class GraphNodes:
                     ),
                 ]
             )
-            retry_text = (retry.content or "").strip()
+            retry_text = normalise_markers((retry.content or "").strip())
             if _MARKER_RE.search(retry_text):
                 answer = retry_text
                 note += " (+1 retry to add missing markers)"
@@ -360,7 +375,7 @@ class GraphNodes:
         structurally impossible to return, rather than merely unlikely.
         """
         started = _now_ms()
-        answer = state.get("answer", "")
+        answer = normalise_markers(state.get("answer", ""))
         used = state.get("context_used", [])
 
         if answer.strip().upper().startswith("INSUFFICIENT_CONTEXT"):

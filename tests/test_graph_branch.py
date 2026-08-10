@@ -263,3 +263,32 @@ def test_reranker_failure_falls_back_to_retrieval_order():
     assert out["status"] == "answered"
     note = next(t["note"] for t in out["trace"] if t["node"] == "rerank")
     assert "error" in note
+
+
+# --- citation marker bracket variants --------------------------------------
+
+
+def test_full_width_cjk_brackets_are_recognised_as_citations():
+    """The model emits 【S1】 (U+3010/U+3011) instead of [S1] often enough to
+    matter. An ASCII-only pattern discarded correctly cited answers as
+    ungrounded and returned a refusal instead."""
+    graph, _, _, _ = build([True], ["The disputed invoice is INV-2024-0618 \u3010S1\u3011."])
+    out = run(graph)
+
+    assert out["status"] == "answered"
+    assert [c["marker"] for c in out["citations"]] == ["[S1]"]
+    assert "[S1]" in out["answer"], "marker should be normalised to ASCII in the answer"
+
+
+def test_marker_normalisation_covers_known_variants():
+    from app.graph.nodes import normalise_markers
+
+    for raw in ("\u3010S2\u3011", "\uff3bS2\uff3d", "[ S2 ]", "[s2]"):
+        assert normalise_markers(f"claim {raw}") == "claim [S2]", raw
+
+
+def test_fabricated_marker_still_dropped_when_written_in_full_width():
+    graph, _, _, _ = build([True], ["Real \u3010S1\u3011. Fake \u3010S9\u3011."])
+    out = run(graph)
+    assert [c["marker"] for c in out["citations"]] == ["[S1]"]
+    assert "S9" not in out["answer"]
