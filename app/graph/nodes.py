@@ -233,8 +233,15 @@ class GraphNodes:
 
     def generate_answer(self, state: AskState) -> dict[str, Any]:
         started = _now_ms()
-        top_k = state.get("top_k") or self.deps.settings.top_k
-        used = state.get("context", [])[:top_k]
+        # Use the SAME context the grader just approved — not a top_k slice of it.
+        #
+        # Context accumulates across retrieval attempts, and grade_context judges
+        # the whole accumulated list. Slicing to top_k here meant the grader could
+        # answer "sufficient, excerpt S6 states it" and then S6 was never shown to
+        # the answerer, which duly replied INSUFFICIENT_CONTEXT and turned a good
+        # answer into a refusal. The list is bounded by (max_attempts+1)*top_k,
+        # so this stays small.
+        used = state.get("context", [])
 
         blocks = []
         for i, c in enumerate(used, start=1):

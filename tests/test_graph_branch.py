@@ -191,6 +191,25 @@ def test_model_declaring_insufficient_context_becomes_not_found():
 # --- trace ------------------------------------------------------------------
 
 
+def test_answerer_sees_every_chunk_the_grader_approved():
+    """The grader judges the full accumulated context; the answerer must receive
+    exactly that. Slicing it to top_k let the grader approve a chunk that was then
+    withheld, so the model replied INSUFFICIENT_CONTEXT and a good answer became a
+    refusal."""
+    chunks = [make_chunk(f"d{i}.md#0", f"fact {i}", score=0.9 - i * 0.01) for i in range(8)]
+    # first grade insufficient -> rewrite -> second grade sufficient, so context
+    # accumulates past top_k before generate_answer runs
+    graph, _, _, answer_chat = build(
+        [False, True], ["The answer is fact 7 [S8]."], hits=chunks, max_attempts=2
+    )
+    out = run(graph, top_k=5)
+
+    assert out["status"] == "answered"
+    rendered = str(answer_chat.calls[-1])
+    assert "[S8]" in rendered, "8th chunk must reach the answerer, not be sliced off"
+    assert len(out["context_used"]) == len(chunks)
+
+
 def test_trace_records_every_node_visited():
     graph, _, _, _ = build([True], ["Notice is 60 days [S1]."])
     out = run(graph)

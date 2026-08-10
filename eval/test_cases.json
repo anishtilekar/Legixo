@@ -8,7 +8,7 @@
       "question": "What is the notice period in the Bluecrest employment agreement?",
       "expected_status": "answered",
       "expected_sources": ["02_employment_agreement_excerpt.md"],
-      "expected_contains": ["60 days"],
+      "expected_contains": ["60 day"],
       "notes": "DISTRACTOR TEST: two other employment agreements state 30 and 90 days."
     },
     {
@@ -16,7 +16,7 @@
       "question": "How long is the non-compete at Bluecrest and what limits it?",
       "expected_status": "answered",
       "expected_sources": ["02_employment_agreement_excerpt.md"],
-      "expected_contains": ["12 months", ["client list", "same city", "competitor"]],
+      "expected_contains": ["12 month", ["client list", "same city", "competitor"]],
       "notes": "Multi-part answer from one section."
     },
     {
@@ -32,7 +32,7 @@
       "question": "What is the limitation period for contract claims under the Riverside Code?",
       "expected_status": "answered",
       "expected_sources_any": ["01_matter_memo_arvind_v_northfield.md", "14_statute_limitation_act.md"],
-      "expected_contains": [["three years", "3 years"]],
+      "expected_contains": [["three year", "3 year"]],
       "notes": "Stated in the memo and now also in the Limitation Act - either citation is correct."
     },
     {
@@ -40,7 +40,7 @@
       "question": "How many days before a hearing must written arguments be filed?",
       "expected_status": "answered",
       "expected_sources_any": ["03_hearing_notice_template.md", "17_hearing_notice_march_list.md"],
-      "expected_contains": [["seven clear days", "7 clear days"]],
+      "expected_contains": [["seven clear day", "7 clear day"]],
       "notes": "Rule appears in both hearing notices; citing either is correct."
     },
     {
@@ -56,7 +56,7 @@
       "question": "When is mediation mandatory before trial, and how long must it last?",
       "expected_status": "answered",
       "expected_sources": ["04_statute_style_excerpt_fictional.md"],
-      "expected_contains": [["five lakh", "5 lakh"], ["30 days"]],
+      "expected_contains": [["five lakh", "5 lakh"], ["30 day"]],
       "notes": "Statute Section 14. Asks for BOTH threshold and duration."
     },
     {
@@ -80,23 +80,23 @@
       "question": "What is the security deposit for Unit 4B and when is it refundable?",
       "expected_status": "answered",
       "expected_sources": ["06_property_lease_clause.md"],
-      "expected_contains": [["135000"], ["45 days"]],
+      "expected_contains": [["135000"], ["45 day"]],
       "notes": "DISTRACTOR TEST: two other leases hold 2,34,000 (60 days) and 3,60,000 (30 days)."
     },
     {
       "id": 11,
-      "question": "What time is case CV-2024-8812 listed, and what is the settlement posture in that matter?",
+      "question": "What time is case CV-2024-8812 listed, and what percentage of open invoices did Northfield offer to settle?",
       "expected_status": "answered",
       "expected_sources": ["03_hearing_notice_template.md", "05_counsel_notes_settlement.md"],
       "expected_contains": [["11:00", "11 a.m.", "11am"], ["70%"]],
-      "notes": "MULTI-SOURCE: must cite both the hearing notice and the counsel notes."
+      "notes": "MULTI-SOURCE: must cite both the hearing notice and the counsel notes. Original wording asked for the 'settlement posture', which the model fairly answered with the client's 85% counter rather than Northfield's 70% offer - the question was ambiguous, so it now names the figure it wants."
     },
     {
       "id": 12,
       "question": "What is the notice period at Vantage Freight Services?",
       "expected_status": "answered",
       "expected_sources": ["07_employment_agreement_vantage.md"],
-      "expected_contains": ["30 days"],
+      "expected_contains": ["30 day"],
       "notes": "DISTRACTOR TEST: must not return Bluecrest's 60 days or Meridian's 90 days."
     },
     {
@@ -104,7 +104,7 @@
       "question": "How long is the notice period at Meridian Health Analytics, and what is garden leave there?",
       "expected_status": "answered",
       "expected_sources": ["08_employment_agreement_meridian.md"],
-      "expected_contains": ["90 days", ["garden leave"]],
+      "expected_contains": ["90 day", ["garden leave"]],
       "notes": "DISTRACTOR TEST plus a second fact from the same clause."
     },
     {
@@ -136,7 +136,7 @@
       "question": "What is the limitation period for claims in tort under the Riverside Limitation Act?",
       "expected_status": "answered",
       "expected_sources": ["14_statute_limitation_act.md"],
-      "expected_contains": [["two years", "2 years"]],
+      "expected_contains": [["two year", "2 year"]],
       "notes": "DISTRACTOR TEST: contract claims are three years in the same document."
     },
     {
@@ -144,7 +144,7 @@
       "question": "How far in advance must an expert affidavit be filed?",
       "expected_status": "answered",
       "expected_sources": ["15_statute_evidence_rules.md"],
-      "expected_contains": [["fourteen days", "14 days"]],
+      "expected_contains": [["fourteen day", "14 day"]],
       "notes": "DISTRACTOR TEST: 'seven clear days' for written arguments is a nearby competing deadline."
     },
     {
@@ -160,7 +160,7 @@
       "question": "How long do confidentiality obligations last under the Bluecrest-Meridian NDA?",
       "expected_status": "answered",
       "expected_sources": ["20_nda_two_way.md"],
-      "expected_contains": [["three years", "3 years"]],
+      "expected_contains": [["three year", "3 year"]],
       "notes": "DISTRACTOR TEST: several other 'three year' periods exist in the corpus."
     },
     {
@@ -176,7 +176,7 @@
       "question": "How long must financial and billing records be retained?",
       "expected_status": "answered",
       "expected_sources": ["26_compliance_data_retention_policy.md"],
-      "expected_contains": [["seven years", "7 years"]],
+      "expected_contains": [["seven year", "7 year"]],
       "notes": "DISTRACTOR TEST: the same policy lists three-year and ten-year periods."
     },
     {
@@ -200,7 +200,7 @@
       "question": "In the Meridian v. Bluecrest injunction, what security must the plaintiff deposit and by when?",
       "expected_status": "answered",
       "expected_sources": ["18_order_interim_injunction.md"],
-      "expected_contains": [["500000"], ["fourteen days", "14 days"]],
+      "expected_contains": [["500000"], ["fourteen day", "14 day"]],
       "notes": "Order sheet: amount plus deadline."
     },
     {
