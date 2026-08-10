@@ -28,18 +28,29 @@ QUESTION: {question}
 Do these excerpts contain the specific facts needed to answer this exact question?"""
 
 
-REWRITE_SYSTEM = """You rewrite a search query to improve retrieval over a small \
-corpus of legal/business documents.
+REWRITE_SYSTEM = """You rewrite a search query to improve retrieval over a corpus \
+of legal/business documents.
 
-Return ONE alternative phrasing that keeps the original intent but varies the \
-wording: use likely document vocabulary (contractual/statutory terms), add key \
-entity names, and drop conversational filler. Return only the rewritten query \
-text, nothing else."""
+Retrieved excerpts accumulate across attempts, so anything already found is kept. \
+That makes the goal specific:
+
+- If the grader's reason says some facts were found but others were NOT, write a \
+  query that hunts ONLY the missing fact. Do not restate the parts already found — \
+  repeating them just retrieves the same excerpts again.
+- If nothing relevant was found at all, rephrase the whole question using likely \
+  document vocabulary (contractual/statutory terms) and key entity names.
+
+Keep entity names (parties, case numbers, unit numbers) in the query — they are \
+what ties a passage to the right document.
+
+Return only the rewritten query text, nothing else."""
 
 REWRITE_USER = """Original question: {question}
 Already tried: {tried}
 
 The retrieved excerpts were judged insufficient because: {reason}
+
+Write a query targeting what is still missing.
 
 Rewritten query:"""
 
