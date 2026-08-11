@@ -342,7 +342,43 @@ and misses the discriminating term ("retainer", "declared value")**. That is pre
 weakness lexical/sparse retrieval fixes, so Phase 7 is now motivated by measured evidence
 rather than by the brief listing it as an extra.
 
-### Resume here
+### Phase 6/7 outcome — 28/33 → 33/33 (superseding the "resume here" notes below)
+
+Four fixes, every one found by tracing a single failing question end to end rather than by
+tuning parameters. Measured after each.
+
+| # | Defect | Effect |
+|---|---|---|
+| 1 | **Chunks embedded without document context.** A judgment's "Relief granted" section is only `Damages: ₹8,50,000 / Interest: 9% / Costs: ₹65,000` — no party name, no case number. "What was awarded in Copperline v. Vantage" could not retrieve the chunk holding the answer; it sat outside the top 12 while the title chunk ranked 2nd. Heading path alone was insufficient too: that file is titled by case *number*, while party *names* live in the `**Matter:**` line. Embedding input is now document context + heading path + body. | 28→29, recall 26/27→**27/27** |
+| 2 | **Citation markers in full-width CJK brackets were unparseable.** The model emits `【S1】` (U+3010/3011) often enough to matter; the ASCII-only regex found zero citations and converted a *correct, properly cited* answer into a refusal. Case 24 had perfect retrieval (rank 1, score 0.8999) and the grader had explicitly confirmed the fact — only the bracket glyph differed. | 29→**32** |
+| 3 | **Query rewrites restated the question.** Context accumulates across attempts, so the useful second query hunts only the *missing* fact — which the grader already names ("gives the declared value but not the award"). The reason was passed to the prompt but never used to narrow the search. | last case reachable at rank 8 |
+| 4 | **`TOP_K=5` too narrow for 93 chunks.** Chosen when the corpus was 15 chunks and k=5 returned a third of it. | **33/33** |
+
+**The `TOP_K` result inverts the usual intuition: a wider window was both more accurate and
+faster** (mean 8.9s → 7.4s). With k=5 the answering chunk is often absent, so the question
+burns the whole rewrite loop — three retrievals, two rewrites, a regeneration — which costs
+far more than one pass over a wider window. Narrow retrieval was buying loops, not saving
+tokens.
+
+### Ablation verdict (`eval/ablation.md`)
+
+| config | eval | OOC | recall | latency |
+|---|---|---|---|---|
+| `dense` (k=5) | 32/33 | 6/6 | 27/27 | 8.9s |
+| **`dense k=8`** ← default | **33/33** | 6/6 | 27/27 | **7.4s** |
+| `dense k=12` | 33/33 | 6/6 | 27/27 | 7.8s |
+| `dense k=12 +rerank` | 31/33 | 6/6 | 27/27 | 9.5s |
+| `hybrid k=12` | 33/33 | 6/6 | 27/27 | 11.2s |
+
+k=8 and k=12 both hit 33/33 in **two independent runs**, which is why the default moved.
+**Reranking measurably hurt** (31/33) in both ablations — it is implemented, tested, and
+left off. **Hybrid matched dense** but costs 50% more latency plus a second index for zero
+gain. Out-of-corpus refusals held **6/6 in every configuration**, throughout every fix.
+
+An earlier ablation concluded "dense beats hybrid and rerank" while the embedding bug was
+still present; that run was discarded and re-measured rather than reported.
+
+### Superseded resume notes (kept for the record)
 
 1. Case 1 is the odd one out — target at rank 1 yet still refused. Diagnose separately
    (likely the answer node or grader strictness, *not* retrieval).

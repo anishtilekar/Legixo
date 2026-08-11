@@ -42,6 +42,12 @@ CONFIGS = {
     "dense k=12": {"retrieval_mode": "dense", "rerank_enabled": False, "top_k": 12},
     "dense k=16": {"retrieval_mode": "dense", "rerank_enabled": False, "top_k": 16},
     "hybrid k=12": {"retrieval_mode": "hybrid", "rerank_enabled": False, "top_k": 12},
+    "dense k=12 +rerank": {
+        "retrieval_mode": "dense",
+        "rerank_enabled": True,
+        "top_k": 12,
+        "rerank_candidates": 24,
+    },
     # widen recall, then let the cross-encoder pick the best few
     "dense k=20 +rerank": {
         "retrieval_mode": "dense",
@@ -176,7 +182,16 @@ def write_report(results: list[dict], counter: RerankCounter) -> None:
     for r in results:
         lines.append(f"| `{r['name']}` | {r['failed_ids'] or 'none'} |")
 
-    lines += ["", "## Reading this", ""]
+    lines += [
+        "",
+        "**Latency note:** higher `TOP_K` measured *faster*, which is not a mistake. With a",
+        "narrow window the answering chunk is often missing, so the question runs the full",
+        "rewrite loop — three retrievals, two rewrites and a regeneration — which costs far",
+        "more than a single pass over a wider window. Narrow retrieval was buying loops.",
+        "",
+        "## Reading this",
+        "",
+    ]
     best = max(results, key=lambda r: (r["passed"], -r["mean_latency"]))
     if best["name"] == baseline["name"]:
         lines += [

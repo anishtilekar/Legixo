@@ -91,7 +91,7 @@ commit it.** `.env.example` contains dummy values only and is the file that ship
 | `PINECONE_INDEX_NAME` | `legixo-qa` | Created automatically if missing. |
 | `PINECONE_NAMESPACE` | `legixo-demo` | Isolates this corpus within the index. |
 | `PINECONE_CLOUD` / `PINECONE_REGION` | `aws` / `us-east-1` | Free-tier serverless region. |
-| `TOP_K` | `5` | Chunks retrieved per query. |
+| `TOP_K` | `8` | Chunks retrieved per query. Measured, not guessed — see [`eval/ablation.md`](eval/ablation.md). |
 | `MAX_ATTEMPTS` | `2` | Retrieval retries before giving up. See [docs/langgraph.md](docs/langgraph.md). |
 | `RELEVANCE_FLOOR` | `0.75` | Coarse backstop only — see [Why the floor is low](#why-the-relevance-floor-is-deliberately-low). |
 | `INGEST_TOKEN` | `dummy-ingest-token` | Shared secret for `POST /admin/ingest`. |
@@ -373,13 +373,14 @@ the server, then:
 python -m scripts.run_eval --repeat 3
 ```
 
-Latest recorded run: **28/33 passed, out-of-corpus refusals 6/6.**
+Latest recorded run: **33/33 passed, out-of-corpus refusals 6/6.**
 
 The corpus contains **deliberate distractors** — three employment agreements with different
 notice periods (60/30/90 days) and three leases with different units and deposits — so
 answering correctly requires selecting the right *document*, not merely the right topic.
-The remaining failures are retrieval-precision cases, measured and analysed in
-[`eval/ablation.md`](eval/ablation.md) rather than hidden.
+Getting there took four fixes, each found by tracing an individual failure rather than by
+tuning knobs — see [Known limitations](#known-limitations) and
+[`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
 
 - Cases and expected citations: [`eval/test_cases.json`](eval/test_cases.json)
 - Per-case results and notes: [`eval/results.md`](eval/results.md)
@@ -497,13 +498,19 @@ Stated plainly rather than left for you to find:
   bit-for-bit deterministic, so an occasional borderline grade can still flip. When it
   does, it fails in the safe direction — *refusing a question it could have answered*,
   never fabricating an answer or a citation.
-- **Retrieval precision is the current ceiling.** The remaining eval failures are cases
-  where dense embedding locks onto an entity name ("Copperline") and misses the
-  discriminating term ("retainer"), pushing the right chunk down the ranking. This is
-  measured per-case in [`eval/ablation.md`](eval/ablation.md), not guessed at.
-- **Hybrid search and reranking are implemented but not on by default.** Both are wired and
-  tested behind `RETRIEVAL_MODE=hybrid` and `RERANK_ENABLED=true`; the ablation records
-  what each one actually bought, and the default is whichever configuration measured best.
+- **Reranking measurably *hurt*, so it is off.** `bge-reranker-v2-m3` scored 31/33 against
+  33/33 for plain dense retrieval, in both ablation runs. It is implemented and tested
+  behind `RERANK_ENABLED=true`, but shipping it on to look thorough would have made the
+  system worse. See [`eval/ablation.md`](eval/ablation.md).
+- **Hybrid search matched dense but cost 50% more latency**, plus a second Pinecone index,
+  for no accuracy gain (33/33 either way). Available via `RETRIEVAL_MODE=hybrid`, not the
+  default. It may well pay off on a larger or more keyword-heavy corpus than this one.
+- **Reaching 33/33 took four fixes, not tuning.** Each came from tracing one failing
+  question end to end: chunks were embedded without document context; citation markers in
+  full-width brackets `【S1】` were unparseable and silently turned correct answers into
+  refusals; query rewrites restated the question instead of hunting the missing fact; and
+  `TOP_K=5` was too narrow for a 93-chunk corpus. Details in
+  [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md).
 - **Markdown-only ingest.** `scripts/ingest.py` globs `*.md`. PDF/DOCX would need a loader.
 - **Single-turn only.** No conversation memory; each `/ask` is independent.
 

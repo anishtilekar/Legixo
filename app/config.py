@@ -35,7 +35,10 @@ class Settings(BaseSettings):
     corpus_dir: str = "corpus"
     chunk_tokens: int = 350
     chunk_overlap_tokens: int = 60
-    top_k: int = 5
+    # 8, not 5 — measured. See eval/ablation.md: k=5 scored 32/33, k=8 scored 33/33
+    # in two independent runs *and* was faster, because a narrow window makes the
+    # answering chunk go missing and the question burns the full rewrite loop.
+    top_k: int = 8
     max_attempts: int = 2
     relevance_floor: float = 0.75
     ingest_token: str = "dummy-ingest-token"
