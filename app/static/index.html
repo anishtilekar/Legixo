@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Legixo Q&amp;A — grounded answers over a document corpus</title>
+<style>
+  /* Everything inline: the page must work with no external requests. */
+  :root {
+    --bg: #0f1216; --panel: #171b21; --line: #262c35; --text: #e6e9ee;
+    --muted: #9aa4b2; --accent: #6ea8fe; --ok: #3fb950; --warn: #d29922; --code: #1e242c;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --panel: #fff; --line: #e3e6ea; --text: #1b1f24;
+      --muted: #5b6673; --accent: #0b62d6; --ok: #1a7f37; --warn: #9a6700; --code: #f0f2f5;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 15px/1.55 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 32px 20px 64px; }
+  header h1 { font-size: 20px; margin: 0 0 4px; }
+  header p { margin: 0 0 24px; color: var(--muted); font-size: 14px; }
+  form { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; padding: 11px 13px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--panel); color: var(--text); font-size: 15px;
+  }
+  input[type=text]:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+  button {
+    padding: 11px 18px; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--accent); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer;
+  }
+  button:disabled { opacity: .55; cursor: default; }
+  .examples { margin: 12px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+  .examples button {
+    background: transparent; color: var(--muted); font-weight: 400; font-size: 13px;
+    padding: 5px 10px;
+  }
+  .examples button:hover { color: var(--text); border-color: var(--accent); }
+  .card {
+    margin-top: 22px; background: var(--panel); border: 1px solid var(--line);
+    border-radius: 10px; padding: 18px;
+  }
+  .badge {
+    display: inline-block; font-size: 12px; font-weight: 700; letter-spacing: .04em;
+    text-transform: uppercase; padding: 3px 9px; border-radius: 999px;
+  }
+  .badge.answered { background: rgba(63,185,80,.15); color: var(--ok); }
+  .badge.not_found { background: rgba(210,153,34,.15); color: var(--warn); }
+  .answer { margin: 14px 0 0; font-size: 16px; white-space: pre-wrap; }
+  .marker { color: var(--accent); font-weight: 600; }
+  h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em;
+       color: var(--muted); margin: 22px 0 10px; }
+  .cite { border-left: 2px solid var(--accent); padding: 8px 0 8px 12px; margin-bottom: 12px; }
+  .cite .top { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; }
+  .cite code { background: var(--code); padding: 1px 6px; border-radius: 4px; font-size: 13px; }
+  .cite .score { color: var(--muted); font-size: 12px; }
+  .cite .heading { color: var(--muted); font-size: 13px; }
+  .cite .snippet { margin-top: 6px; font-size: 13.5px; color: var(--muted); }
+  details { margin-top: 18px; border-top: 1px solid var(--line); padding-top: 12px; }
+  summary { cursor: pointer; color: var(--muted); font-size: 13px; }
+  table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line);
+           vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  td.node { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; white-space: nowrap; }
+  .err { color: #f85149; }
+  .muted { color: var(--muted); font-size: 13px; }
+  .scroll { overflow-x: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Legixo Q&amp;A</h1>
+    <p>
+      Answers come <strong>only</strong> from the indexed corpus. Every claim is tied to the
+      chunk it came from, and unanswerable questions are refused rather than guessed.
+      This page is a thin client over <code>POST /ask</code>.
+    </p>
+  </header>
+
+  <form id="f">
+    <input id="q" type="text" autocomplete="off"
+           placeholder="Ask something about the corpus…"
+           value="What is the notice period in the Bluecrest employment agreement?">
+    <button id="go" type="submit">Ask</button>
+  </form>
+
+  <div class="examples">
+    <button type="button" data-q="What is the notice period in the Bluecrest employment agreement?">Answerable</button>
+    <button type="button" data-q="What is the notice period at Vantage Freight Services?">Distractor (30 vs 60 days)</button>
+    <button type="button" data-q="What time is case CV-2024-8812 listed, and what percentage of open invoices did Northfield offer to settle?">Multi-source</button>
+    <button type="button" data-q="What is the notice period at Copperline Studios?">Unanswerable (trap)</button>
+  </div>
+
+  <div id="out"></div>
+</div>
+
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => (
+  {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]
+));
+// Highlight [S#] markers so the link between claim and citation is visible.
+const withMarkers = (s) => esc(s).replace(/\[S(\d+)\]/g,
+  '<span class="marker">[S$1]</span>');
+
+document.querySelectorAll(".examples button").forEach(b =>
+  b.addEventListener("click", () => { $("#q").value = b.dataset.q; $("#f").requestSubmit(); })
+);
+
+$("#f").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const question = $("#q").value.trim();
+  if (!question) return;
+
+  $("#go").disabled = true;
+  $("#out").innerHTML = '<div class="card muted">Running the graph — retrieve → rerank → grade → answer → verify…</div>';
+
+  try {
+    const res = await fetch("/ask", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question, include_trace: true })
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      $("#out").innerHTML = `<div class="card err">HTTP ${res.status}<br><span class="muted">${esc(detail)}</span></div>`;
+      return;
+    }
+    render(await res.json());
+  } catch (err) {
+    $("#out").innerHTML = `<div class="card err">${esc(err.message)}</div>`;
+  } finally {
+    $("#go").disabled = false;
+  }
+});
+
+function render(d) {
+  const cites = (d.citations || []).map(c => `
+    <div class="cite">
+      <div class="top">
+        <span class="marker">${esc(c.marker)}</span>
+        <code>${esc(c.source_path)}</code>
+        <span class="score">cosine ${Number(c.score).toFixed(4)}</span>
+      </div>
+      <div class="heading">${esc(c.heading_path)}</div>
+      <div class="snippet">${esc(c.snippet)}</div>
+    </div>`).join("");
+
+  const trace = (d.trace || []).map(t => `
+    <tr>
+      <td class="node">${esc(t.node)}</td>
+      <td>${esc(t.note || "")}</td>
+      <td class="muted">${t.ms != null ? Math.round(t.ms) + " ms" : ""}</td>
+    </tr>`).join("");
+
+  $("#out").innerHTML = `
+    <div class="card">
+      <span class="badge ${esc(d.status)}">${d.status === "answered" ? "answered" : "not found"}</span>
+      <span class="muted" style="margin-left:8px">${d.attempts} retrieval attempt${d.attempts === 1 ? "" : "s"}</span>
+      <p class="answer">${withMarkers(d.answer)}</p>
+
+      <h2>Citations ${d.citations.length ? "" : "— none (nothing was asserted)"}</h2>
+      ${cites || '<p class="muted">The corpus does not support an answer, so no sources are cited.</p>'}
+
+      <details>
+        <summary>Graph trace — ${(d.trace || []).length} nodes visited</summary>
+        <div class="scroll">
+          <table>
+            <thead><tr><th>node</th><th>note</th><th>time</th></tr></thead>
+            <tbody>${trace}</tbody>
+          </table>
+        </div>
+      </details>
+    </div>`;
+}
+</script>
+</body>
+</html>

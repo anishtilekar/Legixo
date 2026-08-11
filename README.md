@@ -248,7 +248,17 @@ curl -X POST "http://127.0.0.1:8000/admin/ingest?reset=true" -H "X-Ingest-Token:
 python -m uvicorn app.main:app --port 8000
 ```
 
-Interactive Swagger UI: **http://127.0.0.1:8000/docs**
+Two browser entry points:
+
+| URL | What it is |
+|---|---|
+| **http://127.0.0.1:8000/** | A small built-in page: ask a question, see the answer with its `[S#]` markers highlighted, the citations with source path and cosine score, and the **graph trace** showing every node visited. Self-contained — no CDN, no build step. |
+| **http://127.0.0.1:8000/docs** | FastAPI's Swagger UI, for calling the API directly. |
+
+The page is a *client* over `POST /ask` — the same endpoint you would curl — so Q&A still
+happens strictly over the HTTP API. It exists because a citation list and a node-by-node
+trace are much easier to read rendered than as raw JSON. Ask it an unanswerable question and
+the trace shows the retry loop running to its cap and then abstaining.
 
 Confirm vectors are really in Pinecone:
 
@@ -309,7 +319,9 @@ confident-looking chunks from both files — only a genuine grounding check refu
 
 ### Watch the graph work
 
-Add `"include_trace": true` to see every node, the branch decision, and the loop:
+The browser page at **/** renders this trace as a table, which is the quickest way to see
+it. Over the API, add `"include_trace": true` to get every node, the branch decision, and
+the loop:
 
 ```bash
 curl -X POST http://127.0.0.1:8000/ask -H "Content-Type: application/json" -d "{\"question\":\"What is the notice period at Harbor Bean Roasters?\",\"include_trace\":true}"
@@ -435,7 +447,7 @@ Full write-up: [`eval/calibration.md`](eval/calibration.md).
 ### Offline tests
 
 ```bash
-pytest tests/ -q      # 32 tests, no network, no API keys
+pytest tests/ -q      # 47 tests, no network, no API keys
 ```
 
 `tests/test_graph_branch.py` drives the whole graph with a stub retriever and stub chat
