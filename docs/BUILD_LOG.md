@@ -382,6 +382,9 @@ still present; that run was discarded and re-measured rather than reported.
 
 ## Phase 8 — CI, lint, Docker (PARTIAL — paused)
 
+> **Later resolution:** the Dockerfile described below was deleted in Phase 9 because it
+> could never be built here. See "Dockerfile — RESOLVED: deleted".
+
 **Done and verified:**
 - `.github/workflows/ci.yml` — Python 3.11, `ruff`, `pytest`, a keyless `--dry-run` ingest,
   and a step that **fails the build if a live-looking API key is committed**. No secrets are
@@ -447,17 +450,21 @@ Fresh directory, fresh 3.11 venv, following only the README:
 - Good answer → 60 days cited to `02_employment_agreement_excerpt.md`.
 - Trap question → `not_found`, 0 citations, 3 attempts.
 
-### Dockerfile — still unverified
+### Dockerfile — RESOLVED: deleted
 
 Docker Desktop was launched twice and the daemon never came up
-(`dockerDesktopLinuxEngine` pipe missing). The image has **never been built or run**.
+(`dockerDesktopLinuxEngine` pipe missing), so the image was never built or run. Only static
+checks were possible (COPY paths exist, `.dockerignore` excludes `.env` while keeping
+`.env.example`).
 
-What *was* checked statically: every `COPY` source path exists, `.dockerignore` excludes
-`.env` while keeping `.env.example`, and the pinned requirements are the same ones proven
-on the local path. The README carries a NOTE block saying plainly it is untested rather
-than implying it works. **Decision for whoever resumes: build it on a machine with a
-working daemon and drop the caveat, or delete the Dockerfile — do not ship it silently
-untested.**
+**Decision: `Dockerfile` and `.dockerignore` were deleted, and the README's Docker section
+removed.** An untested Dockerfile that silently fails for a reviewer is worse than no
+Dockerfile — it converts "no container path" into "the container path is broken", which
+reads as carelessness rather than scope. The `py -3.11` route is proven end to end from a
+clean clone and is now the single documented way to run the project.
+
+If a container is wanted later, write it on a machine with a working daemon and *build it
+before committing it*.
 
 **Not done from Phase 8:** retry/backoff on transient provider errors. The grader and the
 answer node each already retry once; what is missing is a bounded retry around embedding
@@ -465,7 +472,7 @@ and Pinecone calls.
 
 ### Resume checklist
 
-1. Verify or drop the Dockerfile (above).
+1. ~~Verify or drop the Dockerfile~~ — done: deleted (see above).
 2. Re-run `python -m scripts.ablation` with the **relabelled** configs — every config now
    pins `top_k` explicitly, because the `dense` row silently stopped meaning k=5 once the
    default moved to 8. The committed `eval/ablation.md` still carries the older labels; its

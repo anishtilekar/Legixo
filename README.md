@@ -66,21 +66,6 @@ Pinecone's Starter (free) tier allows **5 serverless indexes**, all in `us-east-
 project uses one by default (`legixo-qa`), plus a second sparse companion index only if you
 enable hybrid retrieval — see [Retrieval modes](#retrieval-modes).
 
-### Alternative: Docker
-
-If you'd rather not manage Python versions:
-
-```bash
-docker build -t legixo-qa . && docker run --rm --env-file .env -p 8000:8000 legixo-qa
-```
-
-> [!NOTE]
-> **The Dockerfile is not verified.** The Docker daemon would not start on the
-> development machine, so this image has never been built or run. It is written from the
-> same pinned dependencies as the tested local path and `.dockerignore` excludes `.env`, but
-> treat it as untested — the `py -3.11` route below is the one proven end to end from a
-> clean clone.
-
 ## 2. Install
 
 ```bash
