@@ -79,3 +79,18 @@ def test_embedding_text_without_heading_is_unchanged():
 
     assert embedding_text("", "raw body") == "raw body"
     assert embedding_text("   ", "raw body") == "raw body"
+
+
+def test_corpus_readme_is_not_ingested(tmp_path):
+    """A README in the corpus folder documents the corpus; ingesting it would make
+    provenance notes a retrievable, citable chunk."""
+    from app.config import Settings
+    from app.ingest import ingest_corpus
+
+    (tmp_path / "README.md").write_text("# Corpus provenance\n\nNotes.\n", encoding="utf-8")
+    (tmp_path / "01_real_doc.md").write_text("# Doc\n\n## S\n\nBody text.\n", encoding="utf-8")
+
+    result = ingest_corpus(Settings(), corpus_dir=str(tmp_path), dry_run=True)
+
+    assert result.files_processed == 1
+    assert not any("README" in p for p in result.per_file)

@@ -42,7 +42,11 @@ def ingest_corpus(
     if not corpus_root.is_dir():
         raise FileNotFoundError(f"corpus dir not found: {corpus_root}")
 
-    files = sorted(corpus_root.glob("*.md"))
+    # README files in the corpus folder document the corpus; they are not part of
+    # it. Ingesting one would add provenance text as a retrievable, citable chunk.
+    files = sorted(
+        f for f in corpus_root.glob("*.md") if f.stem.upper() != "README"
+    )
     if not files:
         raise FileNotFoundError(f"no .md files found in {corpus_root}")
 

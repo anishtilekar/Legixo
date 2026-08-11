@@ -6,8 +6,14 @@ each answer came from, and says it cannot find something rather than guessing.
 Built with **Python 3.11**, **LangGraph** (9-node `StateGraph` with a branch and a capped
 loop), **Pinecone** (real serverless index), and **Together.ai** for the LLM and embeddings.
 
-> The corpus in `corpus/` is fiction — made-up parties, courts, and facts, supplied with the
-> take-home. No real client data is used anywhere in this project.
+> The corpus in `corpus/` is entirely fiction — made-up parties, courts, and facts. No real
+> client data is used anywhere in this project.
+
+> [!IMPORTANT]
+> **The corpus was extended beyond the supplied sample.** Files `01`–`06` are the six
+> documents shipped in `gen_ai_takehome_sample_corpus.zip`, unmodified. Files `07`–`30` are
+> **24 documents I wrote for this project** in the same fictional style. See
+> [Corpus provenance](#corpus-provenance) for why, and for what that changes.
 
 ---
 
@@ -106,6 +112,66 @@ ingest with the correct settings:
 
 If an index of that name already exists with a different dimension, ingest aborts with an
 explicit error instead of corrupting it.
+
+## Corpus provenance
+
+The brief allows this: *"You can use this as your whole corpus, or mix in more files in the
+same style."* This project takes that option, so it is worth being explicit about what came
+from where.
+
+| Files | Origin | Count |
+|---|---|---|
+| `01_`–`06_` | Supplied in `gen_ai_takehome_sample_corpus.zip`, **unmodified** | 6 |
+| `07_`–`30_` | **Written for this project**, same fictional style | 24 |
+| | **Total** | **30 files / 93 chunks** |
+
+### Why the corpus was extended
+
+With only the supplied 6 files the corpus is 15 chunks. At `TOP_K=5` every query retrieves
+**a third of the entire corpus**, so:
+
+- Retrieval recall was a meaningless 15/15 — everything relevant was always returned.
+- The brief's remaining optional extras (reranker, hybrid search) had nothing to improve,
+  so adding them would have been decoration rather than engineering.
+- "Find the notice period" had exactly one candidate document, so it tested topic matching
+  rather than grounding.
+
+At 93 chunks a query sees ~5% of the corpus and retrieval becomes a real problem. Scaling
+the corpus is what made the rest of the work measurable — and it immediately exposed three
+genuine bugs that the small corpus had hidden (see [`docs/BUILD_LOG.md`](docs/BUILD_LOG.md)).
+
+### The added documents are deliberately adversarial
+
+They are not padding. The additions exist to make grounding *harder*:
+
+- **Three employment agreements** with different notice periods — Bluecrest **60 days**,
+  Vantage **30 days**, Meridian **90 days**. Asking about one company must return *that*
+  company's figure.
+- **Three leases** with different units, rents and deposits (4B, 9C, W-2), where subletting
+  is forbidden in one and permitted in another.
+- **Competing durations** across documents: three-year vs two-year vs twelve-year
+  limitation periods; "seven clear days" for arguments vs "fourteen days" for expert
+  affidavits.
+- **Cross-referencing matters**: `CV-2024-8812` appears across six documents with
+  consistent parties and dates, so multi-source questions are genuinely multi-source.
+- **Out-of-corpus traps** that only exist because of the additions — e.g. *"What is the
+  notice period at Copperline Studios?"* Copperline appears in a lease, an IP assignment
+  and an engagement letter, but has **no** employment agreement, while three other notice
+  periods sit nearby waiting to be wrongly returned.
+
+### If you would rather evaluate against the supplied files only
+
+Everything works on the original six. Point the ingest at a folder containing just those:
+
+```bash
+python -m scripts.ingest --path path/to/original_six --reset
+```
+
+Note that the eval set in [`eval/test_cases.json`](eval/test_cases.json) covers all 30
+files, so cases referencing the added documents will correctly report `not_found` against
+a 6-file corpus.
+
+---
 
 ## 5. Ingest the corpus
 
