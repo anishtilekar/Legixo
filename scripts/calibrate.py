@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import json
 import statistics
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -110,7 +110,7 @@ def main() -> int:
 
 
 def _write_report(rows, ans, ooc, ans_margin, ooc_margin, separable, settings) -> None:
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     lines = [
         "# Retrieval calibration",
         "",

@@ -17,7 +17,7 @@ import argparse
 import json
 import sys
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -29,31 +29,34 @@ from scripts.run_eval import check_case
 CASES_PATH = Path("eval/test_cases.json")
 REPORT_PATH = Path("eval/ablation.md")
 
+# Every config pins top_k explicitly. Inheriting the default would silently
+# change what a row means whenever the default moves — which is exactly what
+# happened when TOP_K went 5 -> 8 and the "dense" row stopped being the k=5
+# baseline it was labelled as.
 CONFIGS = {
-    # retrieval strategy
-    "dense": {"retrieval_mode": "dense", "rerank_enabled": False},
-    "dense+rerank": {"retrieval_mode": "dense", "rerank_enabled": True},
-    "hybrid": {"retrieval_mode": "hybrid", "rerank_enabled": False},
-    "hybrid+rerank": {"retrieval_mode": "hybrid", "rerank_enabled": True},
-    # TOP_K sweep — TOP_K=5 was chosen for a 15-chunk corpus where it returned a
-    # third of everything. On 93 chunks it returns ~5%, and several failures are
-    # cases where the right chunk sits just outside the window at rank 5-8.
-    "dense k=8": {"retrieval_mode": "dense", "rerank_enabled": False, "top_k": 8},
+    "dense k=5": {"retrieval_mode": "dense", "rerank_enabled": False, "top_k": 5},
+    "dense k=8 (default)": {"retrieval_mode": "dense", "rerank_enabled": False, "top_k": 8},
     "dense k=12": {"retrieval_mode": "dense", "rerank_enabled": False, "top_k": 12},
     "dense k=16": {"retrieval_mode": "dense", "rerank_enabled": False, "top_k": 16},
-    "hybrid k=12": {"retrieval_mode": "hybrid", "rerank_enabled": False, "top_k": 12},
+    "dense k=8 +rerank": {
+        "retrieval_mode": "dense",
+        "rerank_enabled": True,
+        "top_k": 8,
+        "rerank_candidates": 20,
+    },
     "dense k=12 +rerank": {
         "retrieval_mode": "dense",
         "rerank_enabled": True,
         "top_k": 12,
         "rerank_candidates": 24,
     },
-    # widen recall, then let the cross-encoder pick the best few
-    "dense k=20 +rerank": {
-        "retrieval_mode": "dense",
+    "hybrid k=8": {"retrieval_mode": "hybrid", "rerank_enabled": False, "top_k": 8},
+    "hybrid k=12": {"retrieval_mode": "hybrid", "rerank_enabled": False, "top_k": 12},
+    "hybrid k=12 +rerank": {
+        "retrieval_mode": "hybrid",
         "rerank_enabled": True,
-        "top_k": 8,
-        "rerank_candidates": 20,
+        "top_k": 12,
+        "rerank_candidates": 24,
     },
 }
 
@@ -156,7 +159,7 @@ def main() -> int:
 
 
 def write_report(results: list[dict], counter: RerankCounter) -> None:
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
     baseline = results[0]
 
     lines = [

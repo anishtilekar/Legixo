@@ -247,7 +247,7 @@ def test_rerank_reorders_context_before_grading():
         # cross-encoder promotes the genuinely relevant chunk
         return sorted(candidates, key=lambda c: "Notice" in c["metadata"]["text"], reverse=True)
 
-    graph, _, _, answer_chat = build([True], ["Notice is 60 days [S1]."], hits=chunks, reranker=reranker)
+    graph, _, _, _ = build([True], ["Notice is 60 days [S1]."], hits=chunks, reranker=reranker)
     out = run(graph)
     assert out["context_used"][0]["metadata"]["chunk_id"] == "right.md#0"
     assert out["status"] == "answered"

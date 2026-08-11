@@ -378,6 +378,42 @@ gain. Out-of-corpus refusals held **6/6 in every configuration**, throughout eve
 An earlier ablation concluded "dense beats hybrid and rerank" while the embedding bug was
 still present; that run was discarded and re-measured rather than reported.
 
+---
+
+## Phase 8 — CI, lint, Docker (PARTIAL — paused)
+
+**Done and verified:**
+- `.github/workflows/ci.yml` — Python 3.11, `ruff`, `pytest`, a keyless `--dry-run` ingest,
+  and a step that **fails the build if a live-looking API key is committed**. No secrets are
+  configured for the workflow on purpose: the suite stubs the retriever and both chat
+  models, so if a test ever needs a key, that test is wrong.
+- `ruff.toml` (`E,F,W,I,UP,B`) — **lint now clean**, 38/38 tests still pass.
+  Two of the fixes were real, not cosmetic:
+  - `zip()` calls in `ingest.py` now use `strict=True`. A mismatch between chunks and
+    returned embeddings would previously have silently dropped chunks from the index.
+  - `build_production_deps` no longer redefines `reranker` conditionally (F811).
+- `.dockerignore` excludes `.env` so secrets can't be baked into an image layer.
+
+**NOT verified — `Dockerfile` was never built.** The Docker daemon would not start on this
+machine (`dockerDesktopLinuxEngine` pipe missing; Docker Desktop was launched and did not
+come up within 5 minutes). The file is written from the same pinned requirements as the
+tested path, but it has not been built or run once. This is flagged in the README with a
+NOTE block rather than presented as working. **Next session: build it, run it, confirm
+`/healthz`, then remove the caveat — or delete the Dockerfile if it does not work.**
+
+**Also outstanding from this phase:** retry/backoff on transient provider errors was
+planned and not implemented.
+
+### Resume checklist
+
+1. Verify or drop the Dockerfile (above).
+2. Re-run `python -m scripts.ablation` with the **relabelled** configs — every config now
+   pins `top_k` explicitly, because the `dense` row silently stopped meaning k=5 once the
+   default moved to 8. The committed `eval/ablation.md` still carries the older labels; its
+   numbers are real but the `dense` row means **k=5**.
+3. Phase 9: web UI at `GET /`, final clean-clone rehearsal, README/demo-script refresh.
+4. README CI badge has a placeholder `OWNER/REPO` to fill in once the remote exists.
+
 ### Superseded resume notes (kept for the record)
 
 1. Case 1 is the odd one out — target at rank 1 yet still refused. Diagnose separately

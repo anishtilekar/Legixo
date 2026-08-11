@@ -10,7 +10,8 @@ Rank Fusion uses only *rank*, so it sidesteps that entirely.
 """
 from __future__ import annotations
 
-from typing import Any, Iterable
+from collections.abc import Iterable
+from typing import Any
 
 # Standard RRF constant from Cormack et al. Large k flattens the contribution
 # curve so no single ranker dominates on its top hit alone.

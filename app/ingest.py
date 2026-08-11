@@ -93,7 +93,10 @@ def ingest_corpus(
         embeddings = embedder.embed_documents(texts)
 
         vectors = []
-        for c, emb in zip(chunks, embeddings):
+        # strict=True: a mismatch means the embedding provider returned a
+        # different number of vectors than we sent chunks. Silently truncating
+        # would drop chunks from the index without any error.
+        for c, emb in zip(chunks, embeddings, strict=True):
             chunk_id = f"{source_path}#{c.chunk_index}"
             vectors.append(
                 {
@@ -124,7 +127,7 @@ def ingest_corpus(
                         "sparse_values": se,
                         "metadata": v["metadata"],
                     }
-                    for v, se in zip(vectors, sparse_embs)
+                    for v, se in zip(vectors, sparse_embs, strict=True)
                 ]
             )
 

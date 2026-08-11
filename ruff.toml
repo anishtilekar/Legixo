@@ -1,0 +1,17 @@
+# Lint config used by CI (.github/workflows/ci.yml).
+line-length = 100
+target-version = "py311"
+
+[lint]
+# Correctness and clarity rules, not house style. ISC is deliberately excluded:
+# the report writers build markdown as lists of adjacent string literals, which
+# is readable there and would be noisier wrapped in parentheses.
+select = ["E", "F", "W", "I", "UP", "B"]
+ignore = [
+    "E501",  # line length is handled by the formatter, not worth failing CI over
+    "B008",  # FastAPI's Depends()/Header() defaults are the documented idiom
+]
+
+[lint.per-file-ignores]
+# Tests deliberately shadow and rebind fixtures/stubs.
+"tests/*" = ["B011"]

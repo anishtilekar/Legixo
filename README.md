@@ -1,3 +1,7 @@
+[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
+
+<!-- Replace OWNER/REPO above with your GitHub path once the remote exists. -->
+
 # Legixo Q&A API — grounded question answering over a document corpus
 
 A small HTTP API that answers questions **only** from a document set, shows which chunk
@@ -61,6 +65,21 @@ You also need two free API keys:
 Pinecone's Starter (free) tier allows **5 serverless indexes**, all in `us-east-1`. This
 project uses one by default (`legixo-qa`), plus a second sparse companion index only if you
 enable hybrid retrieval — see [Retrieval modes](#retrieval-modes).
+
+### Alternative: Docker
+
+If you'd rather not manage Python versions:
+
+```bash
+docker build -t legixo-qa . && docker run --rm --env-file .env -p 8000:8000 legixo-qa
+```
+
+> [!NOTE]
+> **The Dockerfile is not verified.** The Docker daemon would not start on the
+> development machine, so this image has never been built or run. It is written from the
+> same pinned dependencies as the tested local path and `.dockerignore` excludes `.env`, but
+> treat it as untested — the `py -3.11` route below is the one proven end to end from a
+> clean clone.
 
 ## 2. Install
 

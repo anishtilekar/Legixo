@@ -8,8 +8,9 @@ from __future__ import annotations
 
 import re
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Callable
+from typing import Any
 
 from langchain_core.language_models import BaseChatModel
 from pydantic import BaseModel, Field
@@ -36,11 +37,13 @@ _MARKER_VARIANTS = re.compile(
 )
 
 
+# Split after sentence-final punctuation, keeping the delimiter with the sentence.
+_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
+
+
 def normalise_markers(text: str) -> str:
     """Rewrite bracket variants around citation markers to plain ASCII [S#]."""
     return _MARKER_VARIANTS.sub(lambda m: f"[S{m.group(1)}]", text)
-# Split after sentence-final punctuation, keeping the delimiter with the sentence.
-_SENTENCE_RE = re.compile(r"(?<=[.!?])\s+")
 
 # The grader sees FULL chunk text.
 #

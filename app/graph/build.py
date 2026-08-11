@@ -133,10 +133,11 @@ def build_production_deps(settings: Settings) -> GraphDeps:
         sparse = store.query_sparse(sparse_vec, fetch_k)
         return reciprocal_rank_fusion([dense, sparse])
 
-    reranker = None
-    if settings.rerank_enabled:
-        def reranker(query: str, candidates, top_n: int):  # noqa: F811
-            return store.rerank(query, candidates, top_n)
+    def _rerank(query: str, candidates, top_n: int):
+        return store.rerank(query, candidates, top_n)
+
+    # None disables the rerank node (it becomes a pass-through)
+    reranker = _rerank if settings.rerank_enabled else None
 
     return GraphDeps(
         settings=settings,

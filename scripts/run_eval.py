@@ -22,7 +22,7 @@ import json
 import re
 import sys
 from collections import defaultdict
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import httpx
@@ -166,7 +166,7 @@ def write_results_md(results: list[dict], health: dict, args) -> None:
     total = len(results)
     ooc = [r for r in results if r["case"]["expected_status"] == "not_found"]
     ooc_passed = sum(1 for r in ooc if r["ok"])
-    ts = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    ts = datetime.now(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
     lines = [
         "# Eval results",
