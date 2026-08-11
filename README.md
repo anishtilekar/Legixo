@@ -514,13 +514,16 @@ Stated plainly rather than left for you to find:
   bit-for-bit deterministic, so an occasional borderline grade can still flip. When it
   does, it fails in the safe direction — *refusing a question it could have answered*,
   never fabricating an answer or a citation.
-- **Reranking measurably *hurt*, so it is off.** `bge-reranker-v2-m3` scored 31/33 against
-  33/33 for plain dense retrieval, in both ablation runs. It is implemented and tested
-  behind `RERANK_ENABLED=true`, but shipping it on to look thorough would have made the
-  system worse. See [`eval/ablation.md`](eval/ablation.md).
-- **Hybrid search matched dense but cost 50% more latency**, plus a second Pinecone index,
-  for no accuracy gain (33/33 either way). Available via `RETRIEVAL_MODE=hybrid`, not the
-  default. It may well pay off on a larger or more keyword-heavy corpus than this one.
+- **Reranking never beat plain dense retrieval, so it is off.** `bge-reranker-v2-m3`
+  measured at or below the baseline in every ablation run (31–32/33 against 33/33) while
+  roughly doubling latency. It is implemented and tested behind `RERANK_ENABLED=true`, but
+  shipping it enabled to look thorough would have made the system slower and no better.
+- **Hybrid search also never beat dense** (32/33 against 33/33) and cost ~2× the latency
+  plus a second Pinecone index. Available via `RETRIEVAL_MODE=hybrid`, not the default. It
+  would plausibly pay off on a larger or more keyword-heavy corpus than this one.
+- **The ablation is one sample per configuration** against a live hosted API, and rows move
+  between runs. The default rests on `dense k=8` reaching 33/33 in three separate runs, not
+  on a single pass. See [`eval/ablation.md`](eval/ablation.md) for the caveats.
 - **Reaching 33/33 took four fixes, not tuning.** Each came from tracing one failing
   question end to end: chunks were embedded without document context; citation markers in
   full-width brackets `【S1】` were unparseable and silently turned correct answers into

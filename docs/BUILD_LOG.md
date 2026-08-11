@@ -470,6 +470,28 @@ before committing it*.
 answer node each already retry once; what is missing is a bounded retry around embedding
 and Pinecone calls.
 
+### Final ablation (relabelled configs)
+
+Every config now pins `top_k` explicitly, because the `dense` row silently stopped meaning
+k=5 the moment the default moved to 8.
+
+| config | eval | OOC | recall | latency |
+|---|---|---|---|---|
+| `dense k=5` | 32/33 | 6/6 | 27/27 | 7.0s |
+| **`dense k=8` (default)** | **33/33** | 6/6 | 27/27 | **6.5s** |
+| `dense k=12` | 31/33 | 6/6 | 25/27 | 33.2s |
+| `dense k=8 +rerank` | 32/33 | 6/6 | 27/27 | 12.4s |
+| `hybrid k=8` | 32/33 | 6/6 | 27/27 | 15.1s |
+
+**The `k=12` row is not trustworthy and is flagged as such in the report.** Recall fell to
+25/27 while retrieving *more* chunks, alongside a 33.2s mean — retrieving more cannot find
+fewer documents, so that is transient provider trouble during the config, not a property.
+`k=12` scored 33/33 in two earlier runs.
+
+Conclusion rests on repetition, not one pass: **`dense k=8` hit 33/33 in three separate
+runs**. Reranking and hybrid measured **at or below** the dense baseline in every run, so
+both stay off despite being implemented and tested.
+
 ### Resume checklist
 
 1. ~~Verify or drop the Dockerfile~~ — done: deleted (see above).

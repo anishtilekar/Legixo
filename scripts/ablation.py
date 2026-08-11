@@ -187,10 +187,17 @@ def write_report(results: list[dict], counter: RerankCounter) -> None:
 
     lines += [
         "",
-        "**Latency note:** higher `TOP_K` measured *faster*, which is not a mistake. With a",
+        "**Latency note:** a wider `TOP_K` measured *faster*, which is not a mistake. With a",
         "narrow window the answering chunk is often missing, so the question runs the full",
         "rewrite loop — three retrievals, two rewrites and a regeneration — which costs far",
         "more than a single pass over a wider window. Narrow retrieval was buying loops.",
+        "",
+        "**Read a single run with caution.** This is one sample per configuration against a",
+        "live hosted API, and rows do move between runs. A row showing *lower retrieval",
+        "recall at a larger `TOP_K`*, together with a latency far above the others, is the",
+        "signature of transient provider trouble during that config rather than a real",
+        "property — retrieving more chunks cannot find fewer documents. The conclusion below",
+        "rests on configurations that repeated across runs, not on one lucky or unlucky pass.",
         "",
         "## Reading this",
         "",
