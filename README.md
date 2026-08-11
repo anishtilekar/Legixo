@@ -552,10 +552,13 @@ app/
   config.py        settings + fixed embedding constants
   chunking.py      heading-aware markdown splitter with token ceiling
   llm.py           Together chat + E5 embeddings (prefixes enforced here)
-  vectorstore.py   Pinecone: ensure_index / upsert / prune / reset / query
+  vectorstore.py   Pinecone: ensure_index / upsert / prune / reset / query / rerank
+  retrieval.py     RRF fusion for hybrid + dense-score floor helper
   ingest.py        load → chunk → embed → upsert
   prompts.py       grade / rewrite / answer prompts
-  main.py          FastAPI: /ask, /healthz, /admin/ingest
+  main.py          FastAPI: /, /ask, /healthz, /admin/ingest
+  static/
+    index.html     self-contained browser client (no CDN, no build step)
   graph/
     state.py       AskState TypedDict with additive reducers
     nodes.py       the 9 nodes + 2 routing functions
@@ -564,8 +567,9 @@ scripts/
   ingest.py        ingest CLI
   calibrate.py     retrieval score distribution → eval/calibration.md
   run_eval.py      eval runner → eval/results.md
+  ablation.py      retrieval config comparison → eval/ablation.md
 eval/              test cases, results, calibration write-up
 tests/             offline tests (no network, no keys)
 docs/              langgraph.md, BUILD_LOG.md
-corpus/            the 6 fiction documents
+corpus/            30 fiction documents (6 supplied + 24 written here)
 ```

@@ -404,6 +404,65 @@ NOTE block rather than presented as working. **Next session: build it, run it, c
 **Also outstanding from this phase:** retry/backoff on transient provider errors was
 planned and not implemented.
 
+---
+
+## Phase 9 — Browser client + final pass (in progress)
+
+**Built:** `app/static/index.html` served at `GET /` — a self-contained page (no CDN, no
+build step) showing the answer with `[S#]` markers highlighted, each citation with source
+path and cosine score, and the graph trace as a table. It is a *client* over the same
+`POST /ask` a reviewer would curl, so the brief's "HTTP API only for Q&A" still holds.
+
+**The trace view is the reason it exists.** Asking the trap question renders all 14 nodes —
+retrieve/rerank/grade → rewrite → retrieve/rerank/grade → rewrite → retrieve/rerank/grade →
+no_answer → finalize — so the branch and the capped loop are visible at a glance instead of
+buried in JSON. That is the single hardest thing to convey on camera, and this shows it in
+one screenshot.
+
+**Verified in a real browser**, not just by serving bytes:
+- Distractor question → "30 days" cited to `07_employment_agreement_vantage.md` at cosine
+  0.9180 — correctly *not* Bluecrest's 60 days.
+- Trap question → `not found`, zero citations, 14 trace rows.
+
+`tests/test_api_contract.py` (new) pins the surface offline: the page renders, stays
+self-contained (fails if it ever references an external host), keeps calling `/ask` rather
+than growing its own logic, and `/admin/ingest` rejects bad and missing tokens. **47 tests.**
+
+**Docs corrected:** the demo script still said "six small markdown files" and "fifteen
+chunks", which would have misstated the project on camera; and one demo curl used the old
+ambiguous "settlement posture" wording that was fixed in the eval set.
+
+### Clean-clone rehearsal — passed
+
+Fresh directory, fresh 3.11 venv, following only the README:
+
+- Fresh clone contains **no `.env`** — confirmed.
+- `pip install -r requirements.txt` clean.
+- `pytest tests/ -q` with **no `.env` at all** → **47/47**.
+- `python -m scripts.ingest --dry-run` with **no keys** → 30 files.
+- `python -m scripts.ingest --reset` → **30 files / 93 chunks**, matching the README exactly.
+- Re-ran ingest with no flags → `chunks upserted: 93`, `stale pruned: 0` — **idempotency holds
+  at the new scale**.
+- `GET /healthz` → 93 vectors. `GET /` → UI serves (7818 bytes).
+- Good answer → 60 days cited to `02_employment_agreement_excerpt.md`.
+- Trap question → `not_found`, 0 citations, 3 attempts.
+
+### Dockerfile — still unverified
+
+Docker Desktop was launched twice and the daemon never came up
+(`dockerDesktopLinuxEngine` pipe missing). The image has **never been built or run**.
+
+What *was* checked statically: every `COPY` source path exists, `.dockerignore` excludes
+`.env` while keeping `.env.example`, and the pinned requirements are the same ones proven
+on the local path. The README carries a NOTE block saying plainly it is untested rather
+than implying it works. **Decision for whoever resumes: build it on a machine with a
+working daemon and drop the caveat, or delete the Dockerfile — do not ship it silently
+untested.**
+
+**Not done from Phase 8:** retry/backoff on transient provider errors. The grader and the
+answer node each already retry once; what is missing is a bounded retry around embedding
+and Pinecone calls.
+
 ### Resume checklist
 
 1. Verify or drop the Dockerfile (above).
