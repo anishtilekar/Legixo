@@ -21,7 +21,7 @@ and embeddings).
 - `app/` — the actual code (FastAPI server + the LangGraph flow)
 - `corpus/` — the documents it answers questions about
 - `eval/` — my test questions and how the app did on them
-- `docs/` — extra notes (how the graph works, a demo script, my build log)
+- `docs/` — extra notes (how the graph works, my build log)
 - `tests/` — automated tests that don't need any API keys to run
 
 ---
