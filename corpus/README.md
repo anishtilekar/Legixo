@@ -1,31 +1,16 @@
-# Corpus provenance
+# About these documents
 
-Everything here is **fiction** — invented parties, courts, statutes and facts. No real
-client data, and nothing from Legixo production systems.
+Everything in this folder is made up — fake companies, fake court cases, fake numbers.
+Nothing real.
 
-| Files | Origin |
+| Files | Where they came from |
 |---|---|
-| `01_matter_memo_arvind_v_northfield.md` … `06_property_lease_clause.md` | Supplied in `gen_ai_takehome_sample_corpus.zip`, **unmodified** |
-| `07_employment_agreement_vantage.md` … `30_costs_schedule.md` | **Written for this project** (24 files), same fictional style |
+| `01_...` to `06_...` | The 6 sample files from the assignment, unchanged |
+| `07_...` to `30_...` | 24 files I wrote myself, same fictional style |
 
-The brief permits this: *"You can use this as your whole corpus, or mix in more files in
-the same style."*
+I added the extra files so there'd be enough documents to actually test the search
+properly (6 files was too small a set for that). Some of them are deliberately tricky —
+for example three different fake companies each have a different notice period, so
+answering correctly means picking the right company, not just the right topic.
 
-## Why
-
-Six files chunk to 15 vectors. At `TOP_K=5` that returns a third of the corpus per query,
-so retrieval recall was trivially perfect and neither reranking nor hybrid search had
-anything to improve. Thirty files chunk to 93, a query sees ~5%, and retrieval becomes a
-real problem worth measuring.
-
-## The additions are adversarial on purpose
-
-Three employment agreements carry **different** notice periods (60 / 30 / 90 days), three
-leases carry different units and deposits, and several duration facts compete across
-documents. Answering correctly therefore requires selecting the right *document*, not
-merely the right topic.
-
-Cross-references are kept internally consistent — `CV-2024-8812` appears in six files with
-the same parties and dates throughout.
-
-Full rationale: [`../README.md#corpus-provenance`](../README.md#corpus-provenance).
+More details: [`../README.md`](../README.md#about-the-documents).
