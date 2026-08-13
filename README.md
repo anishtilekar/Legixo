@@ -1,6 +1,4 @@
-[![CI](https://github.com/OWNER/REPO/actions/workflows/ci.yml/badge.svg)](https://github.com/OWNER/REPO/actions/workflows/ci.yml)
-
-<!-- Replace OWNER/REPO above with your GitHub path once the remote exists. -->
+[![CI](https://github.com/anishtilekar/Legixo/actions/workflows/ci.yml/badge.svg)](https://github.com/anishtilekar/Legixo/actions/workflows/ci.yml)
 
 # Legixo Q&A API — grounded question answering over a document corpus
 
