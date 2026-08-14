@@ -14,6 +14,10 @@ and embeddings).
 > Everything in `corpus/` is made-up/fictional — fake companies, fake court cases, fake
 > numbers. No real data anywhere.
 
+**Demo video (5–10 min):** [add link here] — covers install, loading the documents,
+starting the server, calling the ask endpoint, a few good answers with citations, one
+question the docs can't answer, and a walkthrough of the LangGraph steps.
+
 ---
 
 ## What's in this repo, quickly
